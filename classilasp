@@ -1,0 +1,4 @@
+#!/bin/sh
+INPUTPATH=$(readlink -f $1)
+cd $(dirname "$0")
+python ./modules/main.py "$INPUTPATH"
