@@ -13,7 +13,7 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
 import state
-from CONSTANTS import INVENTED_PREDICATES, GENERIC_CLINGO_CMD
+import CONSTANTS
 from architectureClasses import Port, Edge, PortGroup, Component, Model
 
 def printSepLine(size):
@@ -391,7 +391,7 @@ def getModelsStrings(modelsPath):
 # same names for them, and we thus have to distinguish them as each one should
 # be specific to their label's hypothesis only
 def computeHypothesesString():
-	invPreds = INVENTED_PREDICATES
+	invPreds = CONSTANTS.INVENTED_PREDICATES
 	hypotheses = state.get('hypotheses')
 	labels = hypotheses.keys()
 	hypStr = ''
@@ -496,7 +496,7 @@ def computeLabelsForModelObj(modelObj, tempFilePath):
 	file.write(classifProg)
 	file.close()
 
-	clingoCmd = list(GENERIC_CLINGO_CMD)
+	clingoCmd = list(CONSTANTS.GENERIC_CLINGO_CMD)
 	clingoCmd.append(tempFilePath)
 
 	out, err = Popen(clingoCmd, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate()
@@ -518,8 +518,8 @@ def generatePieChart(labels, values, title=''):
 def getBlankLabelsCounter():
 	labels = state.get('labels')
 	counter = {
-		'No label': 0,
-		'Multiple labels': 0
+		CONSTANTS.NO_LABEL_STRING: 0,
+		CONSTANTS.MULTIPLE_LABELS_STRING: 0
 	}
 
 	for label in labels:
