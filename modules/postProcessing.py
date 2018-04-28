@@ -72,7 +72,8 @@ def classifyAllModels(modelsAbsPath):
 	threads = list()
 	for tIdx in range(CLASSIFICATION_THREADS):
 		threads.append(Thread(target=popModelAndClassify, 
-							args=(modelsStrings, labelsFile, labelsCounter, lockR, lockW)))
+							args=(modelsStrings, labelsFile, labelsCounter, lockR, lockW),
+							daemon=True))
 	
 	utils.printTitle('All initial models are about to be labelled, this might take a while.')
 	
@@ -87,8 +88,6 @@ def classifyAllModels(modelsAbsPath):
 
 	print('* All models have been succesfully labelled and saved in:\n' + classFilePath + '\n')
 	labelsFile.close()
-
-	print('* Generating labels distribution diagram, please close that window to continue.\n')
 
 	labelKeys = list(labelsCounter.keys())
 	nonZeroLabels = [l for l in labelKeys if labelsCounter[l] > 0]

@@ -81,7 +81,7 @@ if __name__ == "__main__":
     try:
     	main()
     except KeyboardInterrupt:
-        print('\nInterrupted from keyboard!\n')
+    	print('\nInterrupted from keyboard!\n')
     except Exception:
     	traceback.print_exc()
     finally:

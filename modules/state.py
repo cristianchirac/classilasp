@@ -1,7 +1,7 @@
 state = {
 	'mainScriptPath': '',
 	'inputFilePath': '',
-	'tempDirPath': '',
+	'tempDirPath': '__temp__',
 	'unnamedTypesCounter': 1,
 	'iterationNum': 0,
 	'numOfInputModels': 0,

@@ -9,7 +9,7 @@ import sys
 import os
 
 import matplotlib
-matplotlib.use("TkAgg")
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import state
@@ -107,10 +107,10 @@ def computeRelPathToModels(mainPath, modelsPath):
 # This creates a temp directory in the same directory as the file at filepath
 def createTempDirectory(filePath):
 	dirPath = dirname(abspath(filePath))
-	rand = uuid.uuid4().hex
-	tempPath = dirPath + '/' + rand + '/'
-	if not exists(tempPath):
-		os.makedirs(tempPath)
+	tempPath = dirPath + '/' + state.get('tempDirPath') + '/'
+	if exists(tempPath):
+		removeTempDir(tempPath)
+	os.makedirs(tempPath)
 	return tempPath
 
 # This basically does rm -rf on the temp directory at tempPath
@@ -508,12 +508,20 @@ def computeLabelsForModelObj(modelObj, tempFilePath):
 
 	return labelledModels
 
-def generatePieChart(labels, values, title=''):	 
+def generatePieChart(labels, values, title=''):
+	tempDirPath = state.get('tempDirPath')
+	imgPath = join(tempDirPath, uuid.uuid4().hex + '.png')
+
 	plt.pie(values, autopct='%.1f%%', startangle=270)
 	plt.title(title)
 	plt.legend(labels, loc="best")
 	plt.axis('equal')
-	plt.show()
+	plt.savefig(imgPath)
+	plt.clf()
+
+	# We don't use plt.show() because we get a weird error
+	# plus Popen doesn't block current process
+	Popen(["xdg-open", imgPath])
 
 def getBlankLabelsCounter():
 	labels = state.get('labels')

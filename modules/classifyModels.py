@@ -124,7 +124,8 @@ def runILASPCommands(labelsToUpdateHypotheses):
 
 	for label in labelsToUpdateHypotheses:
 		threads.append(Thread(target=runILASPCMDInThread, 
-							args=(backGroundStr, genericBiasStr, label, outputs, lock)))
+							args=(backGroundStr, genericBiasStr, label, outputs, lock),
+							daemon=True))
 
 	for thread in threads:
 		thread.start()
