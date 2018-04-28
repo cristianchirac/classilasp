@@ -8,7 +8,7 @@ import uuid
 from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
 from random import randint
-from CONSTANTS import GENERIC_ILASP_CMD
+from constants import GENERIC_ILASP_CMD
 from os.path import join
 
 def updateExampleFiles(newModel, labels, userLabelIdx):

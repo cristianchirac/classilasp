@@ -1,6 +1,6 @@
 import utils
 import state
-from CONSTANTS import INVENTED_PREDICATES, CLASSIFICATION_THREADS, GENERIC_CLINGO_CMD
+from constants import INVENTED_PREDICATES, CLASSIFICATION_THREADS, GENERIC_CLINGO_CMD
 
 import uuid
 from threading import Thread, Lock
@@ -87,6 +87,8 @@ def classifyAllModels(modelsAbsPath):
 
 	print('* All models have been succesfully labelled and saved in:\n' + classFilePath + '\n')
 	labelsFile.close()
+
+	print('* Generating labels distribution diagram, please close that window to continue.\n')
 
 	labelKeys = list(labelsCounter.keys())
 	nonZeroLabels = [l for l in labelKeys if labelsCounter[l] > 0]

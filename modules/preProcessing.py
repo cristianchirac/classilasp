@@ -7,7 +7,7 @@ from functools import reduce
 import numpy as np
 from sklearn.cluster import MeanShift
 from architectureClasses import Port, Edge, PortGroup, Component, Model
-from CONSTANTS import MAX_RELEVANT_MODELS
+from constants import MAX_RELEVANT_MODELS
 
 # This function takes a list of model strings, as provided in the input file,
 # and returns the afferent Model objects, with custom names or not, depending
