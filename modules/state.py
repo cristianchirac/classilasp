@@ -2,16 +2,27 @@ state = {
 	'mainScriptPath': '',
 	'inputFilePath': '',
 	'tempDirPath': '__temp__',
-	'unnamedTypesCounter': 1,
+
+	'unnamedTypesCounter': 0,
 	'iterationNum': 0,
 	'numOfInputModels': 0,
+
 	'componentTypes': [],
+
 	'labels': [],
 	'labelExamplesPaths': [],
+	'userLabelCounters': {},
+
+	'skippedModels': [],
+
 	'clusters': {},
 	'clusterWeights': {},
+
 	'hypotheses': {},
 	'hypothesesToUpdate': set(),
+
+	'labelPredictionsUpdated': True,
+
 	'classifOutput': ''
 }
 

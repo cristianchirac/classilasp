@@ -36,6 +36,7 @@ def preProcessingFunc():
 
 	clustersMap = preProcessing.parseInputFile(nameComponents)
 	state.set('clusters', clustersMap)
+	utils.initClusterWeights()
 
 	utils.printTitle('Pre-processing of file complete!')
 
@@ -44,6 +45,7 @@ def preProcessingFunc():
 
 	state.set('labels', labels)
 	state.set('labelExamplesPaths', labelExamplesPaths)
+	utils.initUserLabelCounters()
 
 	utils.printTitle('Thank you, classification process will now begin.')
 

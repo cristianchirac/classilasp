@@ -2,6 +2,7 @@
 
 from os.path import abspath, relpath, dirname, basename, exists, join, realpath
 from subprocess import PIPE, run, Popen
+from threading import Thread, Lock
 from graphviz import Graph
 import uuid
 import shutil
@@ -27,7 +28,12 @@ def printTitle(s):
 	printSepLine(len(s) + 2)
 	print()
 
-def printProgressBar (iteration, total):
+def initProgressBar():
+	state.set('iterationNum', 1)
+
+def printProgressBar(total):
+	iteration = state.get('iterationNum')
+
 	relProgress = iteration / float(total)
 	percent = ("{0:.2f}").format(100 * relProgress)
 	length = 50
@@ -37,6 +43,14 @@ def printProgressBar (iteration, total):
 
 	if (iteration == total):
 		print('\n')
+
+	state.set('iterationNum', iteration + 1)
+
+def askYesOrNo():
+	while True:
+		ans = input('Your answer (y/n): ').lower()
+		if (ans == 'y' or ans == 'n'):
+			return ans
 
 # This function recursively checks that two lists have the exact same elements,
 # potentially in different orders; if they are of the same non-zero length, then
@@ -96,6 +110,9 @@ def getLabelFromLabelPred(labelPred):
 	i1 = labelPred.find(',')
 	i2 = labelPred.find(')')
 	return labelPred[i1 + 1 : i2]
+
+def getLabelPredForModel(modelObj, label):
+	return 'label(' + modelObj.modelId + ',' + label + ').\n'
 
 def computeRelPathToModels(mainPath, modelsPath):
 	absMainPath  = abspath(mainPath)
@@ -412,7 +429,7 @@ def computeHypothesesString():
 # the state; it also asks the user for a component name if they agreed to name them,
 # generating a diagram of the component to aid them, or generates a generic name
 # instead otherwise
-def computeModelObjFromModelStr(modelStr, nameComponents):
+def computeModelObjFromModelStr(modelStr, nameComponents=False):
 	modelPredicates = list(map(str.strip, modelStr.split(".")))
 	modelId         = getModelId(modelPredicates[0])
 	nodePredicates  = list(filter(lambda pred: pred.startswith("node"), modelPredicates))
@@ -479,7 +496,7 @@ def getClassifPredForModel(modelId, label):
 # This function generates the clingo program to be run in order to classify a given
 # model object, based on the hypotheses in the state; it then runs the clingo 
 # command, parses the labels from its output and returns those labels
-def computeLabelsForModelObj(modelObj, tempFilePath):
+def computeCurrLabelsForModelObj(modelObj, tempFilePath):
 	modelId       = modelObj.modelId
 	labels 		  = state.get('labels')
 	classifProg   = getBackgroundString()
@@ -536,10 +553,187 @@ def getBlankLabelsCounter():
 	return counter
 
 def printClusters():
-	clusters = state.get('clusters')
-	clusterKeys = list(clusters.keys())
+	clusters       = state.get('clusters')
+	clusterWeights = state.get('clusterWeights')
+	clusterKeys    = list(clusters.keys())
 
 	print('\nClusters:')
 	for ck in clusterKeys:
-		print(str(ck) + ': ' + str(list(map(lambda m: m.modelId, clusters[ck]))))
+		print(str(ck) + ': ' + str(list(map(lambda m: m.labels, clusters[ck]))))
+		print(str(ck) + ' weight: ' + str(clusterWeights[ck]))
 	print()
+
+def initClusterWeights():
+	clusters = state.get('clusters')
+	clusterKeys = list(clusters.keys())
+	weights = {}
+
+	for ck in clusterKeys:
+		weights[ck] = 1
+
+	state.set('clusterWeights', weights)
+
+def getRemainingModelsList():
+	clusters = state.get('clusters')
+	clusterKeys = list(clusters.keys())
+	allModels = list()
+
+	for ck in clusterKeys:
+		allModels += clusters[ck]
+
+	return allModels + state.get('skippedModels')
+
+def computeReclusteringApproxTime():
+	# This is obviously an approximation, depending on how many threads
+	# are used for computation, machine specs, algorithm optimizations, etc
+	SECS_PER_MODEL  = 0.1
+
+	remainingModelsNum = len(getRemainingModelsList())
+	return int(remainingModelsNum * SECS_PER_MODEL)
+
+def computeLabelsForModelObj(modelObj, tempFilePath=''):
+	labelsForModel = list()
+
+	if(state.get('labelPredictionsUpdated')):
+		labelsForModel = modelObj.labels
+	else:
+		tempFilePath = tempFilePath or join(state.get('tempDirPath'), uuid.uuid4().hex + '.las')
+		labelPredsForModel = computeCurrLabelsForModelObj(modelObj, tempFilePath)
+		labelsForModel = list(map(getLabelFromLabelPred, labelPredsForModel))
+
+	return labelsForModel
+
+def addModelToLabelCluster(clusters, modelObj, label):
+	if label in clusters:
+		clusters[label].append(modelObj)
+	else:
+		clusters[label] = [modelObj]
+
+def getLabelsForNewModel(allModels, newClusters, allModelsNum, lockR, lockW):
+	tempDirPath      = state.get('tempDirPath')
+	tempFilePath     = join(tempDirPath, uuid.uuid4().hex + '.las')
+
+	while True:
+		lockR.acquire()
+		if (not len(allModels)):
+			lockR.release()
+			return
+		modelObj = allModels.pop()
+		lockR.release()
+
+		labelPredsForModel = computeCurrLabelsForModelObj(modelObj, tempFilePath)
+		labelsForModel = list(map(getLabelFromLabelPred, labelPredsForModel))
+		modelObj.updateLabels(labelsForModel)
+
+		lockW.acquire()
+		if not len(labelsForModel):
+			addModelToLabelCluster(newClusters, modelObj, constants.NO_LABEL_STRING)
+		elif len(labelsForModel) == 1:
+			addModelToLabelCluster(newClusters, modelObj, labelsForModel[0])
+		else:
+			addModelToLabelCluster(newClusters, modelObj, constants.MULTIPLE_LABELS_STRING)
+
+		printProgressBar(allModelsNum)
+		lockW.release()
+
+def updateClusters(newClusters):
+	state.set('clusters', newClusters)
+
+	clusterKeys         = list(newClusters.keys())
+	newClusterWeights   = {}
+	actualLabelsCounter = 0
+	noLabelStr          = constants.NO_LABEL_STRING
+	multipleLabelsStr   = constants.MULTIPLE_LABELS_STRING
+
+	for ck in clusterKeys:
+		if (ck != noLabelStr and ck != multipleLabelsStr):
+			actualLabelsCounter += 1
+			newClusterWeights[ck] = 1
+
+	boostedWeight = actualLabelsCounter or 1
+
+	if noLabelStr in newClusters:
+		newClusterWeights[noLabelStr] = boostedWeight
+
+	if multipleLabelsStr in newClusters:
+		newClusterWeights[multipleLabelsStr] = boostedWeight
+
+	state.set('clusterWeights', newClusterWeights)
+
+def showExpectedLabelsDistribution():
+	clusters          = state.get('clusters')
+	userLabelCounters = state.get('userLabelCounters')
+	labels            = state.get('labels')
+
+	userLabels  = list(filter(lambda l: userLabelCounters[l] > 0, labels))
+	clusterLabels = list(clusters.keys())
+
+	allLabels = list(set(userLabels + clusterLabels))
+
+	values = list()
+	for l in allLabels:
+		val = 0
+
+		if l in userLabels:
+			val += userLabelCounters[l]
+		if l in clusterLabels:
+			val += len(clusters[l])
+
+		values.append(val)
+
+	title = 'Expected labels distribution with current hypotheses'
+	# print(allLabels)
+	# print(values)
+
+	generatePieChart(allLabels, values, title=title)
+
+def checkAndRecluster():
+	if(state.get('labelPredictionsUpdated')):
+		return
+
+	expCompTime = computeReclusteringApproxTime()
+	print('Recalibrate the model generation algorithm? (approx. ' + 
+			str(expCompTime) + ' second(s))')
+	print(' - this will also produce a diagram with the expected labels distributions\n')
+	ans = askYesOrNo()
+
+	if (ans == 'n'):
+		print()
+		return
+
+	allModels    = getRemainingModelsList()
+	allModelsNum = len(allModels)
+	lockR = Lock()
+	lockW = Lock()
+	newClusters = {}
+	initProgressBar()
+
+	threads = list()
+	for tIdx in range(constants.CLASSIFICATION_THREADS):
+		threads.append(Thread(target=getLabelsForNewModel, 
+							args=(allModels, newClusters, allModelsNum, lockR, lockW),
+							daemon=True))
+
+	printTitle('Recalibrating, please wait.')
+	
+	for thread in threads:
+		thread.start()
+
+	for thread in threads:
+		thread.join()
+
+	updateClusters(newClusters)
+	state.set('skippedModels', [])
+
+	# printClusters()
+	state.set('labelPredictionsUpdated', True)
+	showExpectedLabelsDistribution()
+
+def initUserLabelCounters():
+	labels = state.get('labels')
+	counters = {}
+
+	for label in labels:
+		counters[label] = 0
+
+	state.set('userLabelCounters', counters)

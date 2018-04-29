@@ -24,9 +24,8 @@ def popModelAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW):
 		currModelStr = modelsStrings.pop()
 		lockR.release()
 
-		# Second argumment is not necessary now, using False as dummy arg
-		modelObj       = utils.computeModelObjFromModelStr(currModelStr, False)
-		labelsForModel = utils.computeLabelsForModelObj(modelObj, tempFilePath)
+		modelObj       = utils.computeModelObjFromModelStr(currModelStr)
+		labelsForModel = utils.computeCurrLabelsForModelObj(modelObj, tempFilePath)
 
 		lockW.acquire()
 		output = state.get('classifOutput')
@@ -42,9 +41,7 @@ def popModelAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW):
 		else:
 			labelsCounter['Multiple labels'] += 1
 		
-		i = state.get('iterationNum')
-		utils.printProgressBar(i, totalNumOfModels)
-		state.set('iterationNum', i + 1)
+		utils.printProgressBar(totalNumOfModels)
 
 		lockW.release()
 
@@ -59,7 +56,7 @@ def popModelAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW):
 # given list using lockR and writing to the file using lockW  
 def classifyAllModels(modelsAbsPath):
 	modelsStrings = utils.getModelsStrings(modelsAbsPath)
-	state.set('iterationNum', 1)
+	utils.initProgressBar()
 
 	numOfThreads = CLASSIFICATION_THREADS
 	lockR = Lock()
@@ -70,7 +67,7 @@ def classifyAllModels(modelsAbsPath):
 	labelsCounter = utils.getBlankLabelsCounter()
 
 	threads = list()
-	for tIdx in range(CLASSIFICATION_THREADS):
+	for tIdx in range(numOfThreads):
 		threads.append(Thread(target=popModelAndClassify, 
 							args=(modelsStrings, labelsFile, labelsCounter, lockR, lockW),
 							daemon=True))

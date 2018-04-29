@@ -16,7 +16,7 @@ def computeAllModelObjects(models, nameComponents):
 	allModels = list()
 
 	for modelStr in models:
-		newModelObj = utils.computeModelObjFromModelStr(modelStr, nameComponents)
+		newModelObj = utils.computeModelObjFromModelStr(modelStr, nameComponents=nameComponents)
 		allModels.append(newModelObj)
 
 	return allModels

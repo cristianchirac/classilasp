@@ -7,7 +7,7 @@ import utils
 import uuid
 from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
-from random import randint
+import random
 from constants import GENERIC_ILASP_CMD
 from os.path import join
 
@@ -26,26 +26,30 @@ def updateExampleFiles(newModel, labels, userLabelIdx):
 		file.write('\n' + newEx + '\n')
 		file.close()
 
+def getNewModel():
+	clusters       = state.get('clusters')
+	clusterWeights = state.get('clusterWeights')
+	clusterKeys    = list(clusters.keys())
+	
+	weightedClustersList = list()
+
+	for ck in clusterKeys:
+		weightedClustersList += [ck] * clusterWeights[ck]
+
+	randCluster = random.choice(weightedClustersList)
+
+	newModel = clusters[randCluster].pop()
+	# print('Model id: ' + newModel.modelId)
+	if clusters[randCluster] == []:
+		del clusters[randCluster]
+
+	return newModel
+
 def newClassif():
-	clusters = state.get('clusters')
 	labels   = state.get('labels')
 
-	clusterKeys = list(clusters.keys())
-	# Shouldn't ever go more than once through this loop, just an extra safety measure
-	while True:
-		currClusterKeyIdx = randint(0, len(clusterKeys) - 1)
-		currClusterKey    = clusterKeys[currClusterKeyIdx]
-		if (type(clusters[currClusterKey]) is list) and (len(clusters[currClusterKey]) > 0):
-			break
-
-	newModel = clusters[currClusterKey].pop()
-	# print('Model id: ' + newModel.modelId)
-	if clusters[currClusterKey] == []:
-		del clusters[currClusterKey]
-
-	tempFilePath = join(state.get('tempDirPath'), uuid.uuid4().hex + '.las')
-	labelPredsForModel = utils.computeLabelsForModelObj(newModel, tempFilePath)
-	labelsForModel = list(map(utils.getLabelFromLabelPred, labelPredsForModel))
+	newModel = getNewModel()
+	labelsForModel = utils.computeLabelsForModelObj(newModel)
 	utils.generateModelDiagram(newModel, labelsForModel)
 
 	print('Please classify the model on the screen. Choose (index) from the following:\n')
@@ -67,14 +71,16 @@ def newClassif():
 	# If ans was 0, user wants to skip current model, so redo newClassif
 	# to get a new model
 	if (ans == 0):
+		state.get('skippedModels').append(newModel)
 		print()
 		newClassif()
 		return
 
 	userLabelIdx       = ans - 1
 	userLabel          = labels[userLabelIdx]
-	hypothesesToUpdate = state.get('hypothesesToUpdate')
+	state.get('userLabelCounters')[userLabel] += 1
 
+	hypothesesToUpdate = state.get('hypothesesToUpdate')
 	if (not len(labelsForModel)):
 		hypothesesToUpdate.add(userLabel)
 	elif (len(labelsForModel) == 1 and labelsForModel[0] != userLabel):
@@ -172,12 +178,15 @@ def computeHypotheses():
 				utils.printTitle('Please wait while the hypotheses are being computed, this might take a while.')
 				runILASPCommands(hypothesesToUpdate)
 				utils.printHypotheses()
+				state.set('labelPredictionsUpdated', False)
 			else:
 				utils.printTitle('All new labels agree with the last hypotheses computed.')
 
+			utils.checkAndRecluster()
+
 			print('Would you like to:')
-			print('(1) Continue classification to improve these class hypotheses?')
-			print('(2) Use these hypotheses to automatically classify all initial data?')
+			print('(1) Continue classification to improve current class hypotheses?')
+			print('(2) Use current hypotheses to automatically classify all initial data?')
 			while True:
 				try:
 					ans = int(input('Your answer (1/2): '))

@@ -103,6 +103,7 @@ class Model(object):
         self.modelId    = modelId
         self.components = components
         self.edges      = edges
+        self.labels     = list()
 
     def __str__(self):
     	return ('Model ' + self.modelId +':\n\n' +
@@ -120,3 +121,6 @@ class Model(object):
     		if (comp.isUsedInModel(self.edges)):
     			usedComps.append(comp)
     	return usedComps
+
+    def updateLabels(self, labels):
+        self.labels = labels
