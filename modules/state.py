@@ -3,11 +3,14 @@ state = {
 	'inputFilePath': '',
 	'tempDirPath': '__temp__',
 
+	'prenamedComponents': False,
+	'nameComponents': False,
 	'unnamedTypesCounter': 0,
+	'componentTypes': [],
+	'componentNames': set(),
+
 	'iterationNum': 0,
 	'numOfInputModels': 0,
-
-	'componentTypes': [],
 
 	'labels': [],
 	'labelExamplesPaths': [],

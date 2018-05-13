@@ -71,10 +71,10 @@ class PortGroup(object):
 
 class Component(object):
  
-    def __init__(self, compId, groups):
+    def __init__(self, compId, groups, name=None):
     	self.compId = compId.lower()
     	self.groups = groups
-    	self.name   = None
+    	self.name   = name
  
     def __eq__(self, other):
         if isinstance(other, self.__class__):

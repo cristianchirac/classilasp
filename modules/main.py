@@ -13,12 +13,15 @@ import classifyModels
 
 # PRE-PROCESSING BIT
 def preProcessingFunc():
+	numOfArgs = len(sys.argv)
 	mainScriptPath = sys.argv[0]
 
 	try:
-		inputFilePath = sys.argv[1]
+		inputFilePath = sys.argv[numOfArgs - 1]
 	except IndexError:
-		raise RuntimeError('No file with unclassified models provided!')
+		raise RuntimeError('No file with models provided!')
+
+	utils.setParamsFromArgs(sys.argv[1 : (numOfArgs - 1)])
 
 	state.set('mainScriptPath', utils.getAbsPath(mainScriptPath))
 	state.set('inputFilePath', utils.getAbsPath(inputFilePath))
@@ -27,14 +30,15 @@ def preProcessingFunc():
 	tempDirPath = utils.createTempDirectory(mainScriptPath)
 	state.set('tempDirPath', tempDirPath)
 
-	nameComponentsInput = None
-	while(nameComponentsInput != 'y' and nameComponentsInput != 'n'):
-		nameComponentsInput = input('Would you like to ' +
-									'name the components for more human-readable class hypotheses? ' +
-									'(y/n) ').lower()
-	nameComponents = nameComponentsInput == 'y'
+	if (not state.get('prenamedComponents')):
+		nameComponentsInput = None
+		while(nameComponentsInput != 'y' and nameComponentsInput != 'n'):
+			nameComponentsInput = input('Would you like to ' +
+										'name the components for more human-readable class hypotheses? ' +
+										'(y/n) ').lower()
+		state.set('nameComponents', nameComponentsInput == 'y')
 
-	clustersMap = preProcessing.parseInputFile(nameComponents)
+	clustersMap = preProcessing.parseInputFile()
 	state.set('clusters', clustersMap)
 	utils.initClusterWeights()
 

@@ -52,6 +52,12 @@ def askYesOrNo():
 		if (ans == 'y' or ans == 'n'):
 			return ans
 
+def setParamsFromArgs(args):
+	for arg in args:
+		if arg == '-p':
+			state.set('prenamedComponents', True)
+
+
 # This function recursively checks that two lists have the exact same elements,
 # potentially in different orders; if they are of the same non-zero length, then
 # remove from both lists all elements equal to one of the lists first element
@@ -69,15 +75,19 @@ def checkListsHaveSameElements(l1, l2):
 
 	return checkListsHaveSameElements(l1WithoutElem, l2WithoutElem)
 
-def getModelId(modelPred):
-	i1 = modelPred.find('(')
-	i2 = modelPred.find(')')
-	return modelPred[i1 + 1 : i2]
+def getArgsFromPred(pred):
+	i1 = pred.find('(')
+	i2 = pred.find(')')
+	return pred[i1 + 1 : i2].split(',')
 
-def getNodeIdFromNodePred(nodePredicate):
-	i1 = nodePredicate.find(',')
-	i2 = nodePredicate.find(')')
-	return nodePredicate[i1 + 1 : i2]
+def getModelId(modelPred):
+	return getArgsFromPred(modelPred)[0]
+
+def getNodeIdFromNodePred(nodePred):
+	return getArgsFromPred(nodePred)[1]
+
+def getNodeTypeFromNodePred(nodePred):
+	return getArgsFromPred(nodePred)[2]
 
 def getNodeIdFromPortPred(portPredicate):
 	i1 = portPredicate.find('(')
@@ -367,10 +377,9 @@ def getBiasString():
 # This computes the bias component constants, which are the component types
 def computeBiasConstants():
 	constStr = ''
-	compTypes = state.get('componentTypes')
-	for comp in compTypes:
-		name = comp.name
-		constStr += '#constant(compC,' + name + ').\n'
+	compNames = list(state.get('componentNames'))
+	for comp in compNames:
+		constStr += '#constant(compC,' + comp + ').\n'
 	return constStr
 
 # This reads the file with examples for label and returns its contents as a string
@@ -423,26 +432,61 @@ def computeHypothesesString():
 
 	return hypStr
 
+def setComponentName(comp, compIdToNameMap, prenamed, nameComponents):
+	if (prenamed):
+		if (comp.compId not in compIdToNameMap):
+			raise ValueError('No name for ' + comp.compId + '!')
+		comp.name = compIdToNameMap[comp.compId]
+		state.get('componentNames').add(comp.name)
+
+		return
+
+	# if not prenamed:
+
+	compTypes = state.get('componentTypes')
+	try:
+		idx = compTypes.index(comp)
+		comp.name = compTypes[idx].name
+	except ValueError:
+		if nameComponents:
+			generateCompDiagram(comp)
+			comp.name = input('\n* Found new component, please provide a name for it: ')
+		else:
+			unnamedTypesCounter = state.get('unnamedTypesCounter')
+			comp.name = 'type' + str(unnamedTypesCounter)
+			state.set('unnamedTypesCounter', unnamedTypesCounter + 1)
+		compTypes.append(comp)
+
 # This function takes a string representation of a model, as provided in the input
 # file, and computes the model object from the string. If it encounters any new
 # component types in the process, it appends them to the componentTypes list in
 # the state; it also asks the user for a component name if they agreed to name them,
 # generating a diagram of the component to aid them, or generates a generic name
 # instead otherwise
-def computeModelObjFromModelStr(modelStr, nameComponents=False):
+def computeModelObjFromModelStr(modelStr):
 	modelPredicates = list(map(str.strip, modelStr.split(".")))
 	modelId         = getModelId(modelPredicates[0])
 	nodePredicates  = list(filter(lambda pred: pred.startswith("node"), modelPredicates))
 	portPredicates  = list(filter(lambda pred: pred.startswith("port"), modelPredicates))
 	edgePredicates  = list(filter(lambda pred: pred.startswith("edge"), modelPredicates))
 
-	newModel = Model(modelId, list(), list())
-	allTypes = state.get('componentTypes')
+	prenamed = state.get('prenamedComponents')
+	nameComponents = state.get('nameComponents')
 
+	newModel = Model(modelId, list(), list())
+
+	compIdToNameMap = {}
 	nodeGroupsMap = {}
 
 	for nodePred in nodePredicates:
 		nodeId = getNodeIdFromNodePred(nodePred)
+		if prenamed:
+			try:
+				nodeType = getNodeTypeFromNodePred(nodePred)
+				compIdToNameMap[nodeId] = nodeType
+			except IndexError:
+				raise ValueError('No component name provided for ' + nodeId + '!')
+
 		nodeGroupsMap[nodeId] = list()
 
 	for edgePred in edgePredicates:
@@ -474,19 +518,7 @@ def computeModelObjFromModelStr(modelStr, nameComponents=False):
 		comp = Component(node, nodeGroupsMap[node])
 		if newModel.usesComponent(comp):
 			newModel.components.append(comp)
-
-			try:
-				idx = allTypes.index(comp)
-				comp.name = allTypes[idx].name
-			except ValueError:
-				if nameComponents:
-					generateCompDiagram(comp)
-					comp.name = input('\n* Found new component, please provide a name for it: ')
-				else:
-					unnamedTypesCounter = state.get('unnamedTypesCounter')
-					comp.name = 'type' + str(unnamedTypesCounter)
-					state.set('unnamedTypesCounter', unnamedTypesCounter + 1)
-				allTypes.append(comp)
+			setComponentName(comp, compIdToNameMap, prenamed, nameComponents)
 
 	return newModel
 

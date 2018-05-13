@@ -12,11 +12,11 @@ from constants import MAX_RELEVANT_MODELS
 # This function takes a list of model strings, as provided in the input file,
 # and returns the afferent Model objects, with custom names or not, depending
 # on the value of the bool nameComponents
-def computeAllModelObjects(models, nameComponents):
+def computeAllModelObjects(models):
 	allModels = list()
 
 	for modelStr in models:
-		newModelObj = utils.computeModelObjFromModelStr(modelStr, nameComponents=nameComponents)
+		newModelObj = utils.computeModelObjFromModelStr(modelStr)
 		allModels.append(newModelObj)
 
 	return allModels
@@ -42,7 +42,12 @@ def clusterModels(compositionVectors):
 # in the Nth position the number of the Nth component type that model uses,
 # and returns a list containing all these vectors in the same order as the 
 # models list in the input
-def computeModelsCompositionVectors(models, compNames):
+def computeModelsCompositionVectors(models):
+	compNames = list(state.get('componentNames'))
+
+	if not len(compNames):
+		raise RuntimeError('Internal error, no component names found.')
+
 	compositionVectors = list()
 	for model in models:
 		compositionVector = [0] * len(compNames)
@@ -73,7 +78,7 @@ def computeClusterToModelMapping(models, labels):
 # (randomly) MAX_RELEVANT_MODELS out of them to work with, if their number exceeds
 # this constant value; otherwise, we work with all models
 # The function then returns the map from clusterIds to the actual clusters of models
-def parseInputFile(nameComponents):
+def parseInputFile():
 	modelStrings = utils.getModelsStrings(state.get('inputFilePath'))
 	state.set('numOfInputModels', len(modelStrings))
 
@@ -85,10 +90,13 @@ def parseInputFile(nameComponents):
 	randomSampleSize = min(len(modelStrings), MAX_RELEVANT_MODELS)
 	modelStrings = random.sample(modelStrings, randomSampleSize)
 
-	models = computeAllModelObjects(modelStrings, nameComponents)
-	compNames = list(map(lambda comp: comp.name, state.get('componentTypes')))
+	models = computeAllModelObjects(modelStrings)
 
-	compositionVectors = computeModelsCompositionVectors(models, compNames)
+	if not state.get('prenamedComponents'):
+		compNames = set(list(map(lambda comp: comp.name, state.get('componentTypes'))))
+		state.set('componentNames', compNames)
+
+	compositionVectors = computeModelsCompositionVectors(models)
 	labels = clusterModels(compositionVectors)
 
 	return computeClusterToModelMapping(models, labels)
