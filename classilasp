@@ -1,4 +1,9 @@
-#!/bin/sh
-INPUTPATH=$(readlink -f $1)
+#!/bin/bash
+length=$(($#-1))
+args=${@:1:$length}
+
+pathArg="${!#}"
+INPUTPATH=$(readlink -f $pathArg)
+
 cd $(dirname "$0")
-python ./modules/main.py "$INPUTPATH"
+python ./modules/main.py $args "$INPUTPATH"
