@@ -8,7 +8,7 @@ import uuid
 from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
 import random
-from constants import GENERIC_ILASP_CMD
+from constants import GENERIC_ILASP_CMD, ILASP_LABEL_STRING
 from os.path import join
 
 def updateExampleFiles(newModel, labels, userLabelIdx):
@@ -18,9 +18,9 @@ def updateExampleFiles(newModel, labels, userLabelIdx):
 	for idx in range(len(labels)):
 		currLabel = labels[idx]
 		if idx == userLabelIdx:
-			newEx = utils.generatePosExample(newModel, currLabel)
+			newEx = utils.generatePosExample(newModel)
 		else:
-			newEx = utils.generateNegExample(newModel, currLabel)
+			newEx = utils.generateNegExample(newModel)
 
 		file = open(labelExamplesPaths[currLabel], 'a')
 		file.write('\n' + newEx + '\n')
@@ -52,6 +52,7 @@ def newClassif():
 	labelsForModel = utils.computeLabelsForModelObj(newModel)
 	utils.generateModelDiagram(newModel, labelsForModel)
 
+	# print(newModel.modelId)
 	print('Please classify the model on the screen. Choose (index) from the following:\n')
 	for l in range(len(labels)):
 		print('(' + str(l + 1) + ') ' + labels[l])
@@ -103,7 +104,7 @@ def runILASPCMDInThread(backGroundStr, genericBiasStr, label, outputs, lock):
 	examplesStr   = utils.getExamplesString(label)
 	ILASPFileStr += examplesStr
 
-	biasStr       = genericBiasStr.replace('$$LABEL$$', label)
+	biasStr       = genericBiasStr.replace('$$LABEL$$', ILASP_LABEL_STRING)
 	ILASPFileStr += biasStr
 
 	programPath = utils.createILASPProgram(label, ILASPFileStr)

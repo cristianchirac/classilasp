@@ -14,10 +14,14 @@ from constants import MAX_RELEVANT_MODELS
 # on the value of the bool nameComponents
 def computeAllModelObjects(models):
 	allModels = list()
+	utils.initProgressBar()
+	canPrintProgressBar = state.get('prenamedComponents') or (not state.get('nameComponents'))
 
 	for modelStr in models:
 		newModelObj = utils.computeModelObjFromModelStr(modelStr)
 		allModels.append(newModelObj)
+		if canPrintProgressBar:
+			utils.printProgressBar(len(models))
 
 	return allModels
 
@@ -79,6 +83,7 @@ def computeClusterToModelMapping(models, labels):
 # this constant value; otherwise, we work with all models
 # The function then returns the map from clusterIds to the actual clusters of models
 def parseInputFile():
+	print('* Parsing input file...\n')
 	modelStrings = utils.getModelsStrings(state.get('inputFilePath'))
 	state.set('numOfInputModels', len(modelStrings))
 
@@ -96,6 +101,7 @@ def parseInputFile():
 		compNames = set(list(map(lambda comp: comp.name, state.get('componentTypes'))))
 		state.set('componentNames', compNames)
 
+	print('* Setting up model selection algorithm...')
 	compositionVectors = computeModelsCompositionVectors(models)
 	labels = clusterModels(compositionVectors)
 

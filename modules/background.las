@@ -1,4 +1,6 @@
 compV(C) :- comp(C, _).
+compV(C) :- comp(_, C, _).
+
 edge(P1, P2) :- edge(P2, P1).
 are_connected(C1, C2) :- port(C1, P1), port(C2, P2), edge(P1, P2).
 

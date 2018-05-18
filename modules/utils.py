@@ -14,7 +14,7 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import state
-import constants
+from constants import *
 from architectureClasses import Port, Edge, PortGroup, Component, Model
 
 def printSepLine(size):
@@ -29,10 +29,11 @@ def printTitle(s):
 	print()
 
 def initProgressBar():
-	state.set('iterationNum', 1)
+	state.set('iterationNum', 0)
 
-def printProgressBar(total):
-	iteration = state.get('iterationNum')
+def printProgressBar(total, numOfIterations=1):
+	iteration = state.get('iterationNum') + numOfIterations
+	state.set('iterationNum', iteration)
 
 	relProgress = iteration / float(total)
 	percent = ("{0:.2f}").format(100 * relProgress)
@@ -43,8 +44,6 @@ def printProgressBar(total):
 
 	if (iteration == total):
 		print('\n')
-
-	state.set('iterationNum', iteration + 1)
 
 def askYesOrNo():
 	while True:
@@ -319,11 +318,11 @@ def generateContext(model):
 
 	return contextStr
 
-def generatePosExample(model, label):
-	return '#pos({' + label + '}, {}, {' + generateContext(model) + '}).'
+def generatePosExample(model):
+	return '#pos({' + ILASP_LABEL_STRING + '}, {}, {' + generateContext(model) + '}).'
 
-def generateNegExample(model, label):
-	return '#pos({}, {' + label + '}, {' + generateContext(model) + '}).'
+def generateNegExample(model):
+	return '#pos({}, {' + ILASP_LABEL_STRING + '}, {' + generateContext(model) + '}).'
 
 # Though it shouldn't ever be the case that we read an examples file not yet created,
 # creating them initially in the temp directory is just a safety measure against crashes
@@ -394,12 +393,17 @@ def getExamplesString(label):
 def printHypotheses():
 	hypotheses = state.get('hypotheses')
 	labels     = state.get('labels')
-	for label in labels:
+
+	for labelId in range(len(labels)):
+		label = labels[labelId]
 		print("* Hypothesis for label '" + label + "':\n")
 		if label in hypotheses.keys():
-			print(hypotheses[label])
+			hyp = hypotheses[label].replace(ILASP_LABEL_STRING, label)
+			print(hyp)
 		printSepLine(50)
-		print()
+
+		if labelId < (len(labels) - 1):
+			print()
 
 def trimModel(modelString):
 	return "model" + modelString.strip()
@@ -412,21 +416,46 @@ def getModelsStrings(modelsPath):
 	file.close()
 	return list(map(trimModel, rawModels.split("model")[1:]))
 
+def getLabelPredStr(label):
+	return 'label(M, ' + label + ')'
+
+def getHypothesisWithFullModelPreds(hyp):
+	newHyp = hyp
+
+	for pred in PER_MODEL_PREDS:
+		# E.g. turn ' comp(V0, gs)' into ' comp(M, V0, gs)'
+		newHyp = newHyp.replace(' ' + pred + '(', ' ' + pred + '(M, ')
+
+	if ':-' in newHyp:
+		return newHyp.replace(':- ', ':- model(M), ')
+	else:
+		# This is the very specific case when only examples of one label
+		# have been provided, so there exists only one non-trivial hypothesis,
+		# namely, that label alone as a single rule.
+		return newHyp.replace('.', ' :- model(M).')
+	
+	return newHyp.replace(' :- ', ' :- model(M), ')
+
 # This function returns a string with all hypotheses aggregated for classification
 # Note that multiple hypotheses may have used predicate invention, but used the
 # same names for them, and we thus have to distinguish them as each one should
 # be specific to their label's hypothesis only
 def computeHypothesesString():
-	invPreds = constants.INVENTED_PREDICATES
+	invPreds = INVENTED_PREDICATES
 	hypotheses = state.get('hypotheses')
 	labels = hypotheses.keys()
 	hypStr = ''
 
 	for label in labels:
-		labelHyp = hypotheses[label]
+		labelHyp = hypotheses[label].replace(ILASP_LABEL_STRING, getLabelPredStr(label))
+		labelHyp = getHypothesisWithFullModelPreds(labelHyp)
 
 		for invPred in invPreds:
-			labelHyp = labelHyp.replace(invPred, invPred + '_' + label)
+			labelInvPred = invPred + '_' + label
+			if (invPred + '(') in labelHyp:
+				labelHyp = labelHyp.replace(invPred + '(', labelInvPred + '(M, ')
+			elif invPred in labelHyp:
+				labelHyp = labelHyp.replace(invPred, labelInvPred + '(M)')
 
 		hypStr += labelHyp + '\n'
 
@@ -450,7 +479,8 @@ def setComponentName(comp, compIdToNameMap, prenamed, nameComponents):
 	except ValueError:
 		if nameComponents:
 			generateCompDiagram(comp)
-			comp.name = input('\n* Found new component, please provide a name for it: ')
+			comp.name = input(' - Found new component, please provide a name for it: ')
+			print()
 		else:
 			unnamedTypesCounter = state.get('unnamedTypesCounter')
 			comp.name = 'type' + str(unnamedTypesCounter)
@@ -522,22 +552,35 @@ def computeModelObjFromModelStr(modelStr):
 
 	return newModel
 
-def getClassifPredForModel(modelId, label):
-	return 'label(' + modelId + ',' + label + ') :- ' + label + '.\n'
+def generateModelString(model):
+	modelId  = model.modelId
+	modelStr = '\nmodel(' + modelId + ').\n'
+
+	for compIdx in range(len(model.components)):
+		comp = model.components[compIdx]
+		modelStr += 'comp(' + modelId + ',' + comp.compId + ',' + comp.name + '). '
+		modelStr += 'val('  + comp.compId + ',' + str(pow(2, compIdx)) + ').\n'
+
+		for group in comp.groups:
+			for port in group.ports:
+				modelStr += 'port(' + comp.compId + ',' + port.portId + ').\n'
+
+	for edge in model.edges:
+		modelStr += 'edge' + str(edge) + '.\n'
+
+	return modelStr
 
 # This function generates the clingo program to be run in order to classify a given
 # model object, based on the hypotheses in the state; it then runs the clingo 
 # command, parses the labels from its output and returns those labels
-def computeCurrLabelsForModelObj(modelObj, tempFilePath):
-	modelId       = modelObj.modelId
+def computeLabelPredsForModels(models, tempFilePath):
 	labels 		  = state.get('labels')
 	classifProg   = getBackgroundString()
 	hypothesesStr = computeHypothesesString()
 
-	for label in labels:
-		classifProg += getClassifPredForModel(modelId, label)
+	for modelObj in models:
+		classifProg += generateModelString(modelObj) + '\n\n'
 
-	classifProg += generateContext(modelObj) + '\n\n'
 	classifProg += hypothesesStr
 	classifProg += '#show label/2.'
 
@@ -545,13 +588,13 @@ def computeCurrLabelsForModelObj(modelObj, tempFilePath):
 	file.write(classifProg)
 	file.close()
 
-	clingoCmd = list(constants.GENERIC_CLINGO_CMD)
+	clingoCmd = list(GENERIC_CLINGO_CMD)
 	clingoCmd.append(tempFilePath)
 
 	out, err = Popen(clingoCmd, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate()
 	# raise RuntimeError only if actual error, not warnings, have occured
 	if 'ERROR' in err:
-		raise RuntimeError('Error encountered while classifying model ' + modelId + '.')
+		raise RuntimeError('Error encountered while classifying models.')
 
 	labelledModels = list(filter(lambda w: w.startswith('label'), out.split()))
 
@@ -575,8 +618,8 @@ def generatePieChart(labels, values, title=''):
 def getBlankLabelsCounter():
 	labels = state.get('labels')
 	counter = {
-		constants.NO_LABEL_STRING: 0,
-		constants.MULTIPLE_LABELS_STRING: 0
+		NO_LABEL_STRING: 0,
+		MULTIPLE_LABELS_STRING: 0
 	}
 
 	for label in labels:
@@ -615,14 +658,6 @@ def getRemainingModelsList():
 
 	return allModels + state.get('skippedModels')
 
-def computeReclusteringApproxTime():
-	# This is obviously an approximation, depending on how many threads
-	# are used for computation, machine specs, algorithm optimizations, etc
-	SECS_PER_MODEL  = 0.1
-
-	remainingModelsNum = len(getRemainingModelsList())
-	return int(remainingModelsNum * SECS_PER_MODEL)
-
 def computeLabelsForModelObj(modelObj, tempFilePath=''):
 	labelsForModel = list()
 
@@ -630,7 +665,7 @@ def computeLabelsForModelObj(modelObj, tempFilePath=''):
 		labelsForModel = modelObj.labels
 	else:
 		tempFilePath = tempFilePath or join(state.get('tempDirPath'), uuid.uuid4().hex + '.las')
-		labelPredsForModel = computeCurrLabelsForModelObj(modelObj, tempFilePath)
+		labelPredsForModel = computeLabelPredsForModels([modelObj], tempFilePath)
 		labelsForModel = list(map(getLabelFromLabelPred, labelPredsForModel))
 
 	return labelsForModel
@@ -641,32 +676,62 @@ def addModelToLabelCluster(clusters, modelObj, label):
 	else:
 		clusters[label] = [modelObj]
 
-def getLabelsForNewModel(allModels, newClusters, allModelsNum, lockR, lockW):
+def getModelLabelsMap(labelPredsForModels):
+	modelLabelsMap = {}
+
+	for lPred in labelPredsForModels:
+		mId    = getArgsFromPred(lPred)[0]
+		mLabel = getArgsFromPred(lPred)[1]
+
+		if mId in modelLabelsMap:
+			modelLabelsMap[mId].append(mLabel)
+		else:
+			modelLabelsMap[mId] = [mLabel]
+
+	return modelLabelsMap
+
+def computeLabelsForNewModels(allModels, newClusters, allModelsNum, lockR, lockW):
 	tempDirPath      = state.get('tempDirPath')
 	tempFilePath     = join(tempDirPath, uuid.uuid4().hex + '.las')
+	maxModelsAtOnce  = MODELS_PER_CLASSIF_PROC
 
 	while True:
+		currModels = list()
 		lockR.acquire()
 		if (not len(allModels)):
 			lockR.release()
 			return
-		modelObj = allModels.pop()
+
+		numOfModels = min(maxModelsAtOnce, len(allModels))
+		# print(numOfModels)
+		for idx in range(numOfModels):
+			currModels.append(allModels.pop())
+		# print(len(modelsStrings))
 		lockR.release()
 
-		labelPredsForModel = computeCurrLabelsForModelObj(modelObj, tempFilePath)
-		labelsForModel = list(map(getLabelFromLabelPred, labelPredsForModel))
-		modelObj.updateLabels(labelsForModel)
+		labelPredsForModels = computeLabelPredsForModels(currModels, tempFilePath)
+		modelLabelsMap = getModelLabelsMap(labelPredsForModels)
 
-		lockW.acquire()
-		if not len(labelsForModel):
-			addModelToLabelCluster(newClusters, modelObj, constants.NO_LABEL_STRING)
-		elif len(labelsForModel) == 1:
-			addModelToLabelCluster(newClusters, modelObj, labelsForModel[0])
-		else:
-			addModelToLabelCluster(newClusters, modelObj, constants.MULTIPLE_LABELS_STRING)
+		for modelObj in currModels:
+			mId = modelObj.modelId
+			if mId in modelLabelsMap:
+				modelObj.updateLabels(modelLabelsMap[mId])
 
-		printProgressBar(allModelsNum)
-		lockW.release()
+				lockW.acquire()
+				if (len(modelLabelsMap[mId]) == 1):
+					addModelToLabelCluster(newClusters, modelObj, modelLabelsMap[mId][0])
+				else:
+					addModelToLabelCluster(newClusters, modelObj, MULTIPLE_LABELS_STRING)
+
+			else:
+				modelObj.updateLabels(list())
+
+				lockW.acquire()
+				addModelToLabelCluster(newClusters, modelObj, NO_LABEL_STRING)
+			
+			printProgressBar(allModelsNum)
+
+			lockW.release()
 
 def updateClusters(newClusters):
 	state.set('clusters', newClusters)
@@ -674,8 +739,8 @@ def updateClusters(newClusters):
 	clusterKeys         = list(newClusters.keys())
 	newClusterWeights   = {}
 	actualLabelsCounter = 0
-	noLabelStr          = constants.NO_LABEL_STRING
-	multipleLabelsStr   = constants.MULTIPLE_LABELS_STRING
+	noLabelStr          = NO_LABEL_STRING
+	multipleLabelsStr   = MULTIPLE_LABELS_STRING
 
 	for ck in clusterKeys:
 		if (ck != noLabelStr and ck != multipleLabelsStr):
@@ -723,16 +788,6 @@ def checkAndRecluster():
 	if(state.get('labelPredictionsUpdated')):
 		return
 
-	expCompTime = computeReclusteringApproxTime()
-	print('Recalibrate the model generation algorithm? (approx. ' + 
-			str(expCompTime) + ' second(s))')
-	print(' - this will also produce a diagram with the expected labels distributions\n')
-	ans = askYesOrNo()
-
-	if (ans == 'n'):
-		print()
-		return
-
 	allModels    = getRemainingModelsList()
 	allModelsNum = len(allModels)
 	lockR = Lock()
@@ -741,12 +796,12 @@ def checkAndRecluster():
 	initProgressBar()
 
 	threads = list()
-	for tIdx in range(constants.CLASSIFICATION_THREADS):
-		threads.append(Thread(target=getLabelsForNewModel, 
+	for tIdx in range(CLASSIFICATION_THREADS):
+		threads.append(Thread(target=computeLabelsForNewModels, 
 							args=(allModels, newClusters, allModelsNum, lockR, lockW),
 							daemon=True))
 
-	printTitle('Recalibrating, please wait.')
+	printTitle('Recalibrating algorithm with new hypotheses, please wait.')
 	
 	for thread in threads:
 		thread.start()
@@ -756,8 +811,6 @@ def checkAndRecluster():
 
 	updateClusters(newClusters)
 	state.set('skippedModels', [])
-
-	# printClusters()
 	state.set('labelPredictionsUpdated', True)
 	showExpectedLabelsDistribution()
 

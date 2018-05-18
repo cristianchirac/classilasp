@@ -36,6 +36,7 @@ def preProcessingFunc():
 			nameComponentsInput = input('Would you like to ' +
 										'name the components for more human-readable class hypotheses? ' +
 										'(y/n) ').lower()
+			print()
 		state.set('nameComponents', nameComponentsInput == 'y')
 
 	clustersMap = preProcessing.parseInputFile()

@@ -1,6 +1,6 @@
 import utils
 import state
-from constants import INVENTED_PREDICATES, CLASSIFICATION_THREADS, GENERIC_CLINGO_CMD
+from constants import *
 
 import uuid
 from threading import Thread, Lock
@@ -15,34 +15,42 @@ def popModelAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW):
 	tempFilePath     = join(tempDirPath, uuid.uuid4().hex + '.las')
 	output           = state.get('classifOutput')
 	totalNumOfModels = state.get('numOfInputModels')
+	maxModelsAtOnce  = MODELS_PER_CLASSIF_PROC
 
 	while True:
+		currModels = list()
 		lockR.acquire()
 		if (not len(modelsStrings)):
 			lockR.release()
 			return
-		currModelStr = modelsStrings.pop()
+
+		numOfModels = min(maxModelsAtOnce, len(modelsStrings))
+		# print(numOfModels)
+		for idx in range(numOfModels):
+			currModels.append(modelsStrings.pop())
+		# print(len(modelsStrings))
 		lockR.release()
 
-		modelObj       = utils.computeModelObjFromModelStr(currModelStr)
-		labelsForModel = utils.computeCurrLabelsForModelObj(modelObj, tempFilePath)
+		modelObjs = list(map(utils.computeModelObjFromModelStr, currModels))
+		labelPredsForModels = utils.computeLabelPredsForModels(modelObjs, tempFilePath)
+		modelLabelsMap = utils.getModelLabelsMap(labelPredsForModels)
 
 		lockW.acquire()
+
 		output = state.get('classifOutput')
-		for label in labelsForModel:
+		for label in labelPredsForModels:
 			output += label + '.\n'
 		state.set('classifOutput', output)
 
-		if not len(labelsForModel):
-			labelsCounter['No label'] += 1
-		elif len(labelsForModel) == 1:
-			label = utils.getLabelFromLabelPred(labelsForModel[0])
-			labelsCounter[label] += 1
-		else:
-			labelsCounter['Multiple labels'] += 1
-		
-		utils.printProgressBar(totalNumOfModels)
+		for model in list(modelLabelsMap.keys()):
+			if len(modelLabelsMap[model]) == 1:
+				labelsCounter[modelLabelsMap[model][0]] += 1
+			else:
+				labelsCounter[MULTIPLE_LABELS_STRING] += 1
 
+		labelsCounter[NO_LABEL_STRING] += numOfModels - len(list(modelLabelsMap.keys()))
+
+		utils.printProgressBar(totalNumOfModels, numOfIterations=numOfModels)
 		lockW.release()
 
 # This is the function that classifies all the initial models based on the last
