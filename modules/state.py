@@ -18,6 +18,9 @@ state = {
 
 	'skippedModels': [],
 
+	'prevQuery': '',
+	'queryCache': [],
+
 	'clusters': {},
 	'clusterWeights': {},
 
