@@ -15,7 +15,7 @@ def popModelsAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW)
 	tempFilePath     = join(tempDirPath, uuid.uuid4().hex + '.las')
 	output           = state.get('classifOutput')
 	totalNumOfModels = state.get('numOfInputModels')
-	maxModelsAtOnce  = MODELS_PER_CLASSIF_PROC
+	maxModelsAtOnce  = MODELS_PER_PROC
 
 	while True:
 		currModels = list()
@@ -49,6 +49,13 @@ def popModelsAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW)
 				labelsCounter[MULTIPLE_LABELS_STRING] += 1
 
 		labelsCounter[NO_LABEL_STRING] += numOfModels - len(list(modelLabelsMap.keys()))
+
+		for model in modelObjs:
+			mId = model.modelId
+			if (mId not in list(modelLabelsMap.keys())):
+				state.get('mustLabelModels').append(model)
+			elif (len(modelLabelsMap[mId]) > 1):
+				state.get('mustLabelModels').append(model)
 
 		utils.printProgressBar(totalNumOfModels, numOfIterations=numOfModels)
 		lockW.release()

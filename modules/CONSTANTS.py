@@ -1,6 +1,6 @@
 MAX_RELEVANT_MODELS     = 1000
 CLASSIFICATION_THREADS  = 10
-MODELS_PER_CLASSIF_PROC = 1000
+MODELS_PER_PROC         = 1000
 
 GENERIC_ILASP_CMD       = ["ILASP", "--version=2i"]
 GENERIC_CLINGO_CMD      = ["clingo", "0"]
@@ -10,6 +10,7 @@ ILASP_LABEL_STRING      = "gENERIC_LABEL"
 TEMP_DIR_NAME           = "__temp__"
 QUERY_FILE_NAME         = "QUERY_FILE.las"
 QUERY_KEY_HEAD          = "select"
+QUERY_CACHE_SIZE        = 100
 
 PER_MODEL_PREDS         = ["comp"]
 

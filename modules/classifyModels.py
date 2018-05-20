@@ -61,20 +61,26 @@ def askIfRandomModel():
 
 def newClassif():
 	labels   = state.get('labels')
+	mustLabelModels = state.get('mustLabelModels')
+	isRandomModel = askIfRandomModel()
 
-	if (askIfRandomModel()):
-		newModel = getNewModel()
+	if (isRandomModel):
+		if len(mustLabelModels):
+			isRandomModel = False
+			newModel = mustLabelModels.pop()
+		else:
+			newModel = getNewModel()
 	else:
-		newModel = query.getModelFromCache()
+		newModel = query.getModelWithQuery()
 		if not newModel:
 			print()
 			newClassif()
-			return
+			return		
 
-	labelsForModel = utils.computeLabelsForModelObj(newModel)
+	labelsForModel = utils.computeLabelsForModelObj(newModel, forceCompute=(not isRandomModel))
 	utils.generateModelDiagram(newModel, labelsForModel)
 
-	# print(newModel.modelId)
+	print(newModel.modelId)
 	print('\n* Please classify the model on the screen. Choose (index) from the following:')
 	for l in range(len(labels)):
 		print('(' + str(l + 1) + ') ' + labels[l])
@@ -94,14 +100,18 @@ def newClassif():
 	# If ans was 0, user wants to skip current model, so redo newClassif
 	# to get a new model
 	if (ans == 0):
-		state.get('skippedModels').append(newModel)
+		if isRandomModel:
+			state.get('skippedModels').append(newModel)
 		print()
 		newClassif()
 		return
 
+	state.get('labelledModelIds').append(newModel.modelId)
 	userLabelIdx       = ans - 1
 	userLabel          = labels[userLabelIdx]
-	state.get('userLabelCounters')[userLabel] += 1
+
+	if isRandomModel:
+		state.get('userLabelCounters')[userLabel] += 1
 
 	hypothesesToUpdate = state.get('hypothesesToUpdate')
 	if (not len(labelsForModel)):
@@ -206,6 +216,7 @@ def computeHypotheses():
 				utils.printTitle('All new labels agree with the last hypotheses computed.')
 
 			utils.checkAndRecluster()
+			state.set('mustLabelModels', [])
 
 			print('Would you like to:')
 			print('(1) Continue classification to improve current class hypotheses?')

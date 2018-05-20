@@ -1,6 +1,8 @@
 from tkinter import *
 import state
 import utils
+import uuid
+import random
 from constants import *
 from os.path import *
 from subprocess import PIPE, run, Popen
@@ -51,7 +53,7 @@ def getQueryFromUser(inputQuery):
         highlightPattern(":-", "sep", "green")
 
         if (inputQuery != ''):
-            labelVar.set("Query edited, cache will be updated.")
+            labelVar.set("Editing query, press 'Run' when finished.")
 
     root = Tk()
     root.title("Query editor")
@@ -139,7 +141,13 @@ def getRuleHead(rule):
     return rule.split(':-')[0].strip()
 
 def computeGenericQuery(query):
+    # mVar is the name of the model variable in the generic query.
+    # Since the user will only use very simple variable names,
+    # having a fixed 'random' variable name should be enough to
+    # avoid any name conflicts
+    mVar = 'M040b63b7'
     headPreds = set()
+
     rules = list(map(addSpaces, getQueryRules(query)))
     for rule in rules:
         head = getRuleHead(rule)
@@ -153,23 +161,107 @@ def computeGenericQuery(query):
     for rule in rules:
         newRule = rule
         for head in headPreds:
-            newRule = newRule.replace(' ' + head + '(', ' ' + head + '(M, ')
-            newRule = newRule.replace(' ' + head + ' ', ' ' + head + '(M) ')
+            newRule = newRule.replace(' ' + head + '(', ' ' + head + '(' + mVar + ', ')
+            newRule = newRule.replace(' ' + head + ' ', ' ' + head + '(' + mVar + ') ')
         for pred in PER_MODEL_PREDS:
-            newRule = newRule.replace(' ' + pred + '(', ' ' + pred + '(M, ')
-        newRule = newRule.replace(':-', ':- model(M), ')
+            newRule = newRule.replace(' ' + pred + '(', ' ' + pred + '(' + mVar +', ')
+        newRule = newRule.replace(':-', ':- model(' + mVar + '), ')
         genericQuery += newRule + '\n'
 
     return genericQuery
 
+def getValidModels(models, query, tempFilePath):
+    def getModelIdFromQueryPred(pred):
+        i1 = pred.find('(')
+        i2 = pred.find(')')
+        return pred[i1 + 1 : i2]
+
+    classifProg   = utils.getBackgroundString()
+    for modelObj in models:
+        classifProg += utils.generateModelString(modelObj) + '\n\n'
+
+    classifProg += query + '\n\n'
+    classifProg += '#show select/1.'
+
+    file = open(tempFilePath, 'w')
+    file.write(classifProg)
+    file.close()
+
+    clingoCmd = list(GENERIC_CLINGO_CMD)
+    clingoCmd.append(tempFilePath)
+
+    out, err = Popen(clingoCmd, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate()
+    # raise RuntimeError only if actual error, not warnings, have occured
+    if 'ERROR' in err:
+        raise RuntimeError('Error encountered while classifying models.')
+
+    validModelPreds = list(filter(lambda w: w.startswith(QUERY_KEY_HEAD), out.split()))
+    validModelIds   = list(map(getModelIdFromQueryPred, validModelPreds))
+
+    return list(filter(lambda m: m.modelId in validModelIds, models))
+
+def popModelsAndCheckQuery(modelStrings, query, lockR, lockW, validModels):
+    tempDirPath      = state.get('tempDirPath')
+    tempFilePath     = join(tempDirPath, uuid.uuid4().hex + '.las')
+    totalNumOfModels = state.get('numOfInputModels')
+    labelledModelIds = state.get('labelledModelIds')
+    maxModelsAtOnce  = MODELS_PER_PROC
+
+    while True:
+        currModels = list()
+        lockR.acquire()
+        if (not len(modelStrings)):
+            lockR.release()
+            return
+
+        numOfModels = min(maxModelsAtOnce, len(modelStrings))
+        # print(numOfModels)
+        for idx in range(numOfModels):
+            currModels.append(modelStrings.pop())
+        # print(len(modelStrings))
+        lockR.release()
+
+        modelObjs = list(map(utils.computeModelObjFromModelStr, currModels))
+        validCurrModels = getValidModels(modelObjs, query, tempFilePath)
+        nonLabelledModels = list(filter(lambda m: m.modelId not in labelledModelIds, validCurrModels))
+
+        lockW.acquire()
+        validModels.extend(nonLabelledModels)
+        utils.printProgressBar(totalNumOfModels, numOfIterations=numOfModels)
+        lockW.release()
 
 def updateCache(query):
     genericQuery = computeGenericQuery(query)
-    input()
+    modelStrings = utils.getModelsStrings(state.get('inputFilePath'))
+    utils.initProgressBar()
+    numOfThreads = CLASSIFICATION_THREADS
+    lockR = Lock()
+    lockW = Lock()
 
-def getModelFromCache():
+    # validModels will contain all models 'valid' in the sense that they comply with
+    # the query constraints, and are also not among the already labelled models
+    validModels = list()
+
+    threads = list()
+    for tIdx in range(numOfThreads):
+        threads.append(Thread(target=popModelsAndCheckQuery, 
+                            args=(modelStrings, genericQuery, lockR, lockW, validModels),
+                            daemon=True))
+    utils.printTitle('Searching for complying models, this might take a while.')
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    randomSampleSize = min(len(validModels), QUERY_CACHE_SIZE)
+    cache = random.sample(validModels, randomSampleSize)
+    state.set('queryCache', cache)
+    state.set('prevQuery', query)
+
+
+def getModelWithQuery():
     prevQuery  = state.get('prevQuery')
-    queryCache = state.get('queryCache')
 
     query = getQueryFromUser(prevQuery)
     if (query == ''):
@@ -180,6 +272,7 @@ def getModelFromCache():
             return None
         updateCache(query)
 
+    queryCache = state.get('queryCache')
     if not len(queryCache):
         print('\n*** ALERT: cache is empty, please change query or select random model!')
         return None
