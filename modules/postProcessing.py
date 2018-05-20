@@ -10,12 +10,12 @@ from os.path import join
 # It terminates only when a thread is unable to pop a model string from the list 
 # anymore (because it's empty), otherwise it computes the label(s) for that model
 # and appends them to the file storing all models' labels, then tries to pop again
-def popModelAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW):
+def popModelsAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW):
 	tempDirPath      = state.get('tempDirPath')
 	tempFilePath     = join(tempDirPath, uuid.uuid4().hex + '.las')
 	output           = state.get('classifOutput')
 	totalNumOfModels = state.get('numOfInputModels')
-	maxModelsAtOnce  = MODELS_PER_CLASSIF_PROC
+	maxModelsAtOnce  = MODELS_PER_PROC
 
 	while True:
 		currModels = list()
@@ -50,6 +50,13 @@ def popModelAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW):
 
 		labelsCounter[NO_LABEL_STRING] += numOfModels - len(list(modelLabelsMap.keys()))
 
+		for model in modelObjs:
+			mId = model.modelId
+			if (mId not in list(modelLabelsMap.keys())):
+				state.get('mustLabelModels').append(model)
+			elif (len(modelLabelsMap[mId]) > 1):
+				state.get('mustLabelModels').append(model)
+
 		utils.printProgressBar(totalNumOfModels, numOfIterations=numOfModels)
 		lockW.release()
 
@@ -76,7 +83,7 @@ def classifyAllModels(modelsAbsPath):
 
 	threads = list()
 	for tIdx in range(numOfThreads):
-		threads.append(Thread(target=popModelAndClassify, 
+		threads.append(Thread(target=popModelsAndClassify, 
 							args=(modelsStrings, labelsFile, labelsCounter, lockR, lockW),
 							daemon=True))
 	

@@ -1,7 +1,7 @@
 state = {
 	'mainScriptPath': '',
 	'inputFilePath': '',
-	'tempDirPath': '__temp__',
+	'tempDirPath': '',
 
 	'prenamedComponents': False,
 	'nameComponents': False,
@@ -17,12 +17,14 @@ state = {
 	'userLabelCounters': {},
 
 	'skippedModels': [],
+	'labelledModelIds': [],
 
 	'prevQuery': '',
 	'queryCache': [],
 
 	'clusters': {},
 	'clusterWeights': {},
+	'mustLabelModels': [],
 
 	'hypotheses': {},
 	'hypothesesToUpdate': set(),

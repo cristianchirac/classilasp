@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from os.path import abspath, relpath, dirname, basename, exists, join, realpath
+from os.path import *
 from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
 from graphviz import Graph
@@ -31,9 +31,12 @@ def printTitle(s):
 def initProgressBar():
 	state.set('iterationNum', 0)
 
-def printProgressBar(total, numOfIterations=1):
+def printProgressBar(total, numOfIterations=1, full=False):
 	iteration = state.get('iterationNum') + numOfIterations
 	state.set('iterationNum', iteration)
+
+	if full:
+		iteration = total
 
 	relProgress = iteration / float(total)
 	percent = ("{0:.2f}").format(100 * relProgress)
@@ -133,7 +136,7 @@ def computeRelPathToModels(mainPath, modelsPath):
 # This creates a temp directory in the same directory as the file at filepath
 def createTempDirectory(filePath):
 	dirPath = dirname(abspath(filePath))
-	tempPath = dirPath + '/' + state.get('tempDirPath') + '/'
+	tempPath = dirPath + '/' + TEMP_DIR_NAME + '/'
 	if exists(tempPath):
 		removeTempDir(tempPath)
 	os.makedirs(tempPath)
@@ -158,9 +161,9 @@ def computeClassFilePath():
 # are in, orange ports are inout
 def generateCompDiagram(comp):
 	tempDirPath = state.get('tempDirPath')
-	rand = uuid.uuid4().hex
+	filepath = join(tempDirPath, uuid.uuid4().hex + '.gv')
 	indexTracker = {}
-	g = Graph('G', filename=join(tempDirPath, rand + '.gv'), engine='fdp')
+	g = Graph('G', filename=filepath)
 	g.format = 'png'
 
 	with g.subgraph(name='clusterComponent') as c:
@@ -183,7 +186,8 @@ def generateCompDiagram(comp):
 						a.node_attr.update(color='orange')
 					a.node(name + '_' + str(idx), label=name, style='filled')
 	
-	g.view()
+	g.render()
+	Popen(["xdg-open", filepath + '.png'])
 
 # Converts list strs e.g. ['a', 'b', 'c'] to string 'a, b, c'
 # PRE: len(strs) >= 2
@@ -202,7 +206,8 @@ def listAsEnumeratedString(strs):
 # the model, if any such prediction is available in labelsForModel
 def generateModelDiagram(model, labelsForModel):
 	tempDirPath = state.get('tempDirPath')
-	g = Graph('G', filename=join(tempDirPath, uuid.uuid4().hex + '.gv'), engine='fdp')
+	filepath = join(tempDirPath, uuid.uuid4().hex + '.gv')
+	g = Graph('G', filename=filepath)
 	g.format = 'png'
 
 	for i in range(len(model.components)):
@@ -239,7 +244,8 @@ def generateModelDiagram(model, labelsForModel):
 		lStr = 'Predicted labels: ' + listAsEnumeratedString(labelsForModel)
 	g.attr(label=lStr)
 
-	g.view()
+	g.render()
+	Popen(["xdg-open", filepath + '.png'])
 
 # Delete all of the temp directory and exit
 def deleteTempDataAndExit():
@@ -603,10 +609,16 @@ def computeLabelPredsForModels(models, tempFilePath):
 def generatePieChart(labels, values, title=''):
 	tempDirPath = state.get('tempDirPath')
 	imgPath = join(tempDirPath, uuid.uuid4().hex + '.png')
+	mapping = {}
+	for idx in range(len(labels)):
+		mapping[labels[idx]] = values[idx]
 
-	plt.pie(values, autopct='%.1f%%', startangle=270)
+	sortedLabels = sorted(labels)
+	sortedValues = list(map(lambda l: mapping[l], sortedLabels))
+
+	plt.pie(sortedValues, autopct='%.1f%%', startangle=270)
 	plt.title(title)
-	plt.legend(labels, loc="best")
+	plt.legend(sortedLabels, loc="best")
 	plt.axis('equal')
 	plt.savefig(imgPath)
 	plt.clf()
@@ -658,10 +670,10 @@ def getRemainingModelsList():
 
 	return allModels + state.get('skippedModels')
 
-def computeLabelsForModelObj(modelObj, tempFilePath=''):
+def computeLabelsForModelObj(modelObj, tempFilePath='', forceCompute=False):
 	labelsForModel = list()
 
-	if(state.get('labelPredictionsUpdated')):
+	if(state.get('labelPredictionsUpdated') and not forceCompute):
 		labelsForModel = modelObj.labels
 	else:
 		tempFilePath = tempFilePath or join(state.get('tempDirPath'), uuid.uuid4().hex + '.las')
@@ -675,6 +687,11 @@ def addModelToLabelCluster(clusters, modelObj, label):
 		clusters[label].append(modelObj)
 	else:
 		clusters[label] = [modelObj]
+
+def findModelWithId(mId, models):
+	for model in models:
+		if model.modelId == mId:
+			return model
 
 def getModelLabelsMap(labelPredsForModels):
 	modelLabelsMap = {}
@@ -693,7 +710,7 @@ def getModelLabelsMap(labelPredsForModels):
 def computeLabelsForNewModels(allModels, newClusters, allModelsNum, lockR, lockW):
 	tempDirPath      = state.get('tempDirPath')
 	tempFilePath     = join(tempDirPath, uuid.uuid4().hex + '.las')
-	maxModelsAtOnce  = MODELS_PER_CLASSIF_PROC
+	maxModelsAtOnce  = MODELS_PER_PROC
 
 	while True:
 		currModels = list()

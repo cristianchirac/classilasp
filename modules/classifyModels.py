@@ -8,6 +8,7 @@ import uuid
 from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
 import random
+import query
 from constants import GENERIC_ILASP_CMD, ILASP_LABEL_STRING
 from os.path import join
 
@@ -45,15 +46,42 @@ def getNewModel():
 
 	return newModel
 
+def askIfRandomModel():
+	print('(1) Generate random model for classification?')
+	print('(2) Generate model based on a custom set of constraints?')
+	while True:
+		try:
+			ans = int(input('Your answer: '))
+			if (ans < 1 or ans > 2):
+				raise ValueError
+			return (ans == 1)
+		except ValueError:
+			print('Invalid label index, please try again!')
+			continue
+
 def newClassif():
 	labels   = state.get('labels')
+	mustLabelModels = state.get('mustLabelModels')
+	isRandomModel = askIfRandomModel()
 
-	newModel = getNewModel()
-	labelsForModel = utils.computeLabelsForModelObj(newModel)
+	if (isRandomModel):
+		if len(mustLabelModels):
+			isRandomModel = False
+			newModel = mustLabelModels.pop()
+		else:
+			newModel = getNewModel()
+	else:
+		newModel = query.getModelWithQuery()
+		if not newModel:
+			print()
+			newClassif()
+			return		
+
+	labelsForModel = utils.computeLabelsForModelObj(newModel, forceCompute=(not isRandomModel))
 	utils.generateModelDiagram(newModel, labelsForModel)
 
-	# print(newModel.modelId)
-	print('Please classify the model on the screen. Choose (index) from the following:\n')
+	print(newModel.modelId)
+	print('\n* Please classify the model on the screen. Choose (index) from the following:')
 	for l in range(len(labels)):
 		print('(' + str(l + 1) + ') ' + labels[l])
 
@@ -72,14 +100,18 @@ def newClassif():
 	# If ans was 0, user wants to skip current model, so redo newClassif
 	# to get a new model
 	if (ans == 0):
-		state.get('skippedModels').append(newModel)
+		if isRandomModel:
+			state.get('skippedModels').append(newModel)
 		print()
 		newClassif()
 		return
 
+	state.get('labelledModelIds').append(newModel.modelId)
 	userLabelIdx       = ans - 1
 	userLabel          = labels[userLabelIdx]
-	state.get('userLabelCounters')[userLabel] += 1
+
+	if isRandomModel:
+		state.get('userLabelCounters')[userLabel] += 1
 
 	hypothesesToUpdate = state.get('hypothesesToUpdate')
 	if (not len(labelsForModel)):
@@ -184,6 +216,7 @@ def computeHypotheses():
 				utils.printTitle('All new labels agree with the last hypotheses computed.')
 
 			utils.checkAndRecluster()
+			state.set('mustLabelModels', [])
 
 			print('Would you like to:')
 			print('(1) Continue classification to improve current class hypotheses?')
