@@ -10,7 +10,7 @@ from os.path import join
 # It terminates only when a thread is unable to pop a model string from the list 
 # anymore (because it's empty), otherwise it computes the label(s) for that model
 # and appends them to the file storing all models' labels, then tries to pop again
-def popModelAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW):
+def popModelsAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW):
 	tempDirPath      = state.get('tempDirPath')
 	tempFilePath     = join(tempDirPath, uuid.uuid4().hex + '.las')
 	output           = state.get('classifOutput')
@@ -76,7 +76,7 @@ def classifyAllModels(modelsAbsPath):
 
 	threads = list()
 	for tIdx in range(numOfThreads):
-		threads.append(Thread(target=popModelAndClassify, 
+		threads.append(Thread(target=popModelsAndClassify, 
 							args=(modelsStrings, labelsFile, labelsCounter, lockR, lockW),
 							daemon=True))
 	

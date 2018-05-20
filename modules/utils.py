@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from os.path import abspath, relpath, dirname, basename, exists, join, realpath
+from os.path import *
 from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
 from graphviz import Graph
@@ -133,7 +133,7 @@ def computeRelPathToModels(mainPath, modelsPath):
 # This creates a temp directory in the same directory as the file at filepath
 def createTempDirectory(filePath):
 	dirPath = dirname(abspath(filePath))
-	tempPath = dirPath + '/' + state.get('tempDirPath') + '/'
+	tempPath = dirPath + '/' + TEMP_DIR_NAME + '/'
 	if exists(tempPath):
 		removeTempDir(tempPath)
 	os.makedirs(tempPath)
@@ -658,10 +658,10 @@ def getRemainingModelsList():
 
 	return allModels + state.get('skippedModels')
 
-def computeLabelsForModelObj(modelObj, tempFilePath=''):
+def computeLabelsForModelObj(modelObj, tempFilePath='', forceCompute=False):
 	labelsForModel = list()
 
-	if(state.get('labelPredictionsUpdated')):
+	if(state.get('labelPredictionsUpdated') and not forceCompute):
 		labelsForModel = modelObj.labels
 	else:
 		tempFilePath = tempFilePath or join(state.get('tempDirPath'), uuid.uuid4().hex + '.las')

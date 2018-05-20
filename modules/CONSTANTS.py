@@ -7,6 +7,10 @@ GENERIC_CLINGO_CMD      = ["clingo", "0"]
 INVENTED_PREDICATES     = ["invented_pred"]
 ILASP_LABEL_STRING      = "gENERIC_LABEL"
 
+TEMP_DIR_NAME           = "__temp__"
+QUERY_FILE_NAME         = "QUERY_FILE.las"
+QUERY_KEY_HEAD          = "select"
+
 PER_MODEL_PREDS         = ["comp"]
 
 NO_LABEL_STRING         = "No label"

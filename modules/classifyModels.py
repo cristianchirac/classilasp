@@ -8,6 +8,7 @@ import uuid
 from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
 import random
+import query
 from constants import GENERIC_ILASP_CMD, ILASP_LABEL_STRING
 from os.path import join
 
@@ -45,15 +46,36 @@ def getNewModel():
 
 	return newModel
 
+def askIfRandomModel():
+	print('(1) Generate random model for classification?')
+	print('(2) Generate model based on a custom set of constraints?')
+	while True:
+		try:
+			ans = int(input('Your answer: '))
+			if (ans < 1 or ans > 2):
+				raise ValueError
+			return (ans == 1)
+		except ValueError:
+			print('Invalid label index, please try again!')
+			continue
+
 def newClassif():
 	labels   = state.get('labels')
 
-	newModel = getNewModel()
+	if (askIfRandomModel()):
+		newModel = getNewModel()
+	else:
+		newModel = query.getModelFromCache()
+		if not newModel:
+			print()
+			newClassif()
+			return
+
 	labelsForModel = utils.computeLabelsForModelObj(newModel)
 	utils.generateModelDiagram(newModel, labelsForModel)
 
 	# print(newModel.modelId)
-	print('Please classify the model on the screen. Choose (index) from the following:\n')
+	print('\n* Please classify the model on the screen. Choose (index) from the following:')
 	for l in range(len(labels)):
 		print('(' + str(l + 1) + ') ' + labels[l])
 

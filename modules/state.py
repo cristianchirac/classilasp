@@ -1,7 +1,7 @@
 state = {
 	'mainScriptPath': '',
 	'inputFilePath': '',
-	'tempDirPath': '__temp__',
+	'tempDirPath': '',
 
 	'prenamedComponents': False,
 	'nameComponents': False,
