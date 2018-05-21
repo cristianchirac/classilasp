@@ -17,6 +17,7 @@ import state
 from constants import *
 from architectureClasses import Port, Edge, PortGroup, Component, Model
 
+# Prints a separator line of length "size"
 def printSepLine(size):
 	print(' ' + ('-' * size))
 
@@ -28,9 +29,13 @@ def printTitle(s):
 	printSepLine(len(s) + 2)
 	print()
 
+# This resets the iteration number to be used to display the progress bar
 def initProgressBar():
 	state.set('iterationNum', 0)
 
+# This function prints a progress bar. It is computed as a ratio
+# between "iterationNum" in the state and "total". If "full" flag
+# is set to True, it simply prints a full progress bar.
 def printProgressBar(total, numOfIterations=1, full=False):
 	iteration = state.get('iterationNum') + numOfIterations
 	state.set('iterationNum', iteration)
@@ -54,6 +59,8 @@ def askYesOrNo():
 		if (ans == 'y' or ans == 'n'):
 			return ans
 
+# It checks what argumments in "args" it recognizes, and sets
+# the corresponding state params accordingly
 def setParamsFromArgs(args):
 	for arg in args:
 		if arg == '-p':
@@ -606,6 +613,8 @@ def computeLabelPredsForModels(models, tempFilePath):
 
 	return labelledModels
 
+# This function generates a piechart with the labels, values
+# and title provided
 def generatePieChart(labels, values, title=''):
 	tempDirPath = state.get('tempDirPath')
 	imgPath = join(tempDirPath, uuid.uuid4().hex + '.png')
@@ -639,6 +648,7 @@ def getBlankLabelsCounter():
 
 	return counter
 
+# This function should only ever be used for debugging
 def printClusters():
 	clusters       = state.get('clusters')
 	clusterWeights = state.get('clusterWeights')
