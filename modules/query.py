@@ -3,7 +3,7 @@ import state
 import utils
 import uuid
 import random
-from constants import *
+from CONSTANTS import *
 from os.path import *
 from subprocess import PIPE, run, Popen
 from threading import Thread, Lock

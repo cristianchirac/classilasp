@@ -1,6 +1,6 @@
 import utils
 import state
-from constants import *
+from CONSTANTS import *
 
 import uuid
 from threading import Thread, Lock

@@ -14,7 +14,7 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import state
-from constants import *
+from CONSTANTS import *
 from architectureClasses import Port, Edge, PortGroup, Component, Model
 
 # Prints a separator line of length "size"

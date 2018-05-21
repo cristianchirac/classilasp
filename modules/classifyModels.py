@@ -9,7 +9,7 @@ from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
 import random
 import query
-from constants import GENERIC_ILASP_CMD, ILASP_LABEL_STRING
+from CONSTANTS import GENERIC_ILASP_CMD, ILASP_LABEL_STRING
 from os.path import join
 
 # Given a newModel and its corresponding label (= labels[userLabelIdx]),
