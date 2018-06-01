@@ -343,7 +343,7 @@ def getModelWithQuery():
         print('\n*** ALERT: cache is empty, please change query or select random model!')
         return None
     else:
-        return queryCache.pop()
+        return utils.getModelFromList(queryCache)
 
 # query = getQueryFromUser('hello')
 # print(len(query))

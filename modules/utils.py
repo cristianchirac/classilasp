@@ -8,6 +8,7 @@ import uuid
 import shutil
 import sys
 import os
+import random
 
 import matplotlib
 matplotlib.use("agg")
@@ -759,6 +760,40 @@ def computeLabelsForNewModels(allModels, newClusters, allModelsNum, lockR, lockW
 			printProgressBar(allModelsNum)
 
 			lockW.release()
+
+# PRE: models is non-empty
+def getModelFromList(models):
+	modelsSize = len(models)
+	sortedModels = list()
+	for idx in range(modelsSize):
+		sortedModels.append((models[idx], idx))
+
+	sortedModels.sort(key=(lambda item: len(item[0].getUsedComponents())))
+	# print(list(map(lambda item: len(item[0].getUsedComponents()), sortedModels)))
+	# input()
+
+	item = None
+	if (modelsSize < 3):
+		# If 1 or 2 elements, choose the "smallest" one
+		item = sortedModels[0]
+	else:
+		# We divide the sortedModels in 3 equal parts, in order to
+		# prioritize "smaller" models in terms of number of components
+		FIRST_WT  = 3
+		SECOND_WT = 2
+		THIRD_WT  = 1
+
+		whichPartList = [0] * FIRST_WT + [1] * SECOND_WT + [2] * THIRD_WT
+		whichPart = random.choice(whichPartList)
+		startIdx = int((whichPart * modelsSize) / 3)
+		endIdx = int(((whichPart + 1) * modelsSize) / 3)
+
+		item = random.choice(sortedModels[startIdx:endIdx])
+
+	# print((len(item[0].getUsedComponents()), item[1]))
+	# input()
+	return models.pop(item[1])
+	
 
 def updateClusters(newClusters):
 	state.set('clusters', newClusters)

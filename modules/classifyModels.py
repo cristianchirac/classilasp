@@ -46,8 +46,9 @@ def getNewModel():
 
 	randCluster = random.choice(weightedClustersList)
 
-	newModel = clusters[randCluster].pop()
+	newModel = utils.getModelFromList(clusters[randCluster])
 	# print('Model id: ' + newModel.modelId)
+	# input()
 	if clusters[randCluster] == []:
 		del clusters[randCluster]
 
