@@ -1,3 +1,5 @@
+from CONSTANTS import *
+
 state = {
 	'mainScriptPath': '',
 	'inputFilePath': '',
@@ -12,6 +14,8 @@ state = {
 	'iterationNum': 0,
 	'numOfInputModels': 0,
 
+	'sampleModelIds': [],
+
 	'labels': [],
 	'labelExamplesPaths': [],
 	'userLabelCounters': {},
@@ -24,7 +28,10 @@ state = {
 
 	'clusters': {},
 	'clusterWeights': {},
-	'mustLabelModels': [],
+	'mustLabelModels': {
+		NO_LABEL_STRING:        [],
+		MULTIPLE_LABELS_STRING: []
+	},
 
 	'hypotheses': {},
 	'hypothesesToUpdate': set(),

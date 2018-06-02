@@ -60,6 +60,17 @@ def askYesOrNo():
 		if (ans == 'y' or ans == 'n'):
 			return ans
 
+# This function takes a list with values and a list of weights as input
+# These lists are assumed to have the same length
+# It generates a random value from the first list, with each value taken
+# with corresponding weight from the second list
+def choiceWithWeights(vals, weights):
+	weightedVals = list()
+	for idx in range(len(vals)):
+		weightedVals += [vals[idx]] * weights[idx]
+
+	return random.choice(weightedVals)
+
 # It checks what argumments in "args" it recognizes, and sets
 # the corresponding state params accordingly
 def setParamsFromArgs(args):
@@ -566,6 +577,56 @@ def computeModelObjFromModelStr(modelStr):
 
 	return newModel
 
+def getModelIds(models):
+	return list(map(lambda m: m.modelId, models))
+
+def isModelFromSample(mId):
+	sampleModelIds = state.get('sampleModelIds')
+	return mId in sampleModelIds
+
+# PRE: mId appears at most once in models
+def removeModelFromList(mId, models):
+	for idx in range(len(models)):
+		if mId == models[idx].modelId:
+			models.pop(idx)
+			return
+
+def removeModelFromLists(mId):
+	clusters            = state.get('clusters')
+	noLabelMusts        = state.get('mustLabelModels')[NO_LABEL_STRING]
+	multipleLabelsMusts = state.get('mustLabelModels')[MULTIPLE_LABELS_STRING]
+	queryCache          = state.get('queryCache')
+	skippedModels       = state.get('skippedModels')
+
+	for ck in list(clusters.keys()):
+		removeModelFromList(mId, clusters[ck])	
+	removeModelFromList(mId, noLabelMusts)
+	removeModelFromList(mId, multipleLabelsMusts)
+	removeModelFromList(mId, queryCache)
+	removeModelFromList(mId, skippedModels)
+
+# For debugging purposes only
+def printModelLists():
+	sampleModelIds      = state.get('sampleModelIds')
+	clusters            = state.get('clusters')
+	noLabelMusts        = state.get('mustLabelModels')[NO_LABEL_STRING]
+	multipleLabelsMusts = state.get('mustLabelModels')[MULTIPLE_LABELS_STRING]
+	queryCache          = state.get('queryCache')
+	skippedModels       = state.get('skippedModels')
+	labelledModelIds    = state.get('labelledModelIds')
+
+	print('Sample Model Ids: ' + str(sampleModelIds))
+	print('\nLabelled Model Ids: ' + str(labelledModelIds))
+	print('\nCLUSTERS:')
+	for ck in list(clusters.keys()):
+		print(str(ck) + ': ' + str(getModelIds(clusters[ck])))
+
+	print('\nNo Labels Musts: ' + str(getModelIds(noLabelMusts)))
+	print('\nMultiple Labels Musts: ' + str(getModelIds(multipleLabelsMusts)))
+	print('\nQuery Cache: ' + str(getModelIds(queryCache)))
+	print('\nSkipped Models: ' + str(getModelIds(skippedModels)))
+	print()
+
 def generateModelString(model):
 	modelId  = model.modelId
 	modelStr = '\nmodel(' + modelId + ').\n'
@@ -648,6 +709,112 @@ def getBlankLabelsCounter():
 		counter[label] = 0
 
 	return counter
+
+# PRE: models is non-empty
+def getModelFromList(models):
+	modelsSize = len(models)
+	sortedModels = list()
+	for idx in range(modelsSize):
+		sortedModels.append((models[idx], idx))
+
+	sortedModels.sort(key=(lambda item: len(item[0].getUsedComponents())))
+	# print(list(map(lambda item: len(item[0].getUsedComponents()), sortedModels)))
+	# input()
+
+	item = None
+	if (modelsSize < 3):
+		# If 1 or 2 elements, choose the "smallest" one
+		item = sortedModels[0]
+	else:
+		# We divide the sortedModels in 3 equal parts, in order to
+		# prioritize "smaller" models in terms of number of components
+		FIRST_WT  = 3
+		SECOND_WT = 2
+		THIRD_WT  = 1
+
+		whichPartList = [0] * FIRST_WT + [1] * SECOND_WT + [2] * THIRD_WT
+		whichPart = random.choice(whichPartList)
+		startIdx = int((whichPart * modelsSize) / 3)
+		endIdx = int(((whichPart + 1) * modelsSize) / 3)
+
+		item = random.choice(sortedModels[startIdx:endIdx])
+
+	# print((len(item[0].getUsedComponents()), item[1]))
+	# input()
+	return models.pop(item[1])
+
+def resetMustLabelModels():
+	state.set('mustLabelModels', {
+		NO_LABEL_STRING:        [],
+		MULTIPLE_LABELS_STRING: []
+	})
+
+def noLabelsExist():
+	clusters = state.get('clusters')
+	mustLabelModels = state.get('mustLabelModels')
+	if len(mustLabelModels[NO_LABEL_STRING]):
+		return True
+
+	return (NO_LABEL_STRING in clusters) and len(clusters[NO_LABEL_STRING])
+
+def multipleLabelsExist():
+	clusters = state.get('clusters')
+	mustLabelModels = state.get('mustLabelModels')
+	if len(mustLabelModels[MULTIPLE_LABELS_STRING]):
+		return True
+
+	return (MULTIPLE_LABELS_STRING in clusters) and len(clusters[MULTIPLE_LABELS_STRING])
+
+# For debugging pruposes only
+def printMustLabelSizes():
+	mustLabelModels = state.get('mustLabelModels')
+	print(NO_LABEL_STRING + ': ' + str(len(mustLabelModels[NO_LABEL_STRING])))
+	print(MULTIPLE_LABELS_STRING + ': ' + str(len(mustLabelModels[MULTIPLE_LABELS_STRING])))
+	print()
+
+def checkNoEmptyClusters():
+	clusters = state.get('clusters')
+	for ck in list(clusters.keys()):
+		if (clusters[ck] == []):
+			del clusters[ck]
+
+# PRE: a "no label" model does exist
+def getNoLabelModel():
+	clusters = state.get('clusters')
+	mustLabelModels = state.get('mustLabelModels')[NO_LABEL_STRING]
+	# printMustLabelSizes()
+	# input()
+
+	if not len(mustLabelModels):
+		return getModelFromList(clusters[NO_LABEL_STRING]), True
+	elif NO_LABEL_STRING not in clusters:
+		return getModelFromList(mustLabelModels), False
+	else:
+		# both lists are non-empty, choose randomly, with priority for
+		# the "musts", here represented by 0, clusters by 1
+		if (choiceWithWeights([0, 1], [MUST_LABEL_WEIGHT, NOT_MUST_LABEL_WEIGHT]) == 0):
+			return getModelFromList(mustLabelModels), False
+		else:
+			return getModelFromList(clusters[NO_LABEL_STRING]), True
+
+# PRE: a "multiple labels" model does exist
+def getMultipleLabelsModel():
+	clusters = state.get('clusters')
+	mustLabelModels = state.get('mustLabelModels')[MULTIPLE_LABELS_STRING]
+	# printMustLabelSizes()
+	# input()
+
+	if not len(mustLabelModels):
+		return getModelFromList(clusters[MULTIPLE_LABELS_STRING]), True
+	elif MULTIPLE_LABELS_STRING not in clusters:
+		return getModelFromList(mustLabelModels), False
+	else:
+		# both lists are non-empty, choose randomly, with priority for
+		# the "musts", here represented by 0, clusters by 1
+		if (choiceWithWeights([0, 1], [MUST_LABEL_WEIGHT, NOT_MUST_LABEL_WEIGHT]) == 0):
+			return getModelFromList(mustLabelModels), False
+		else:
+			return getModelFromList(clusters[MULTIPLE_LABELS_STRING]), True
 
 # This function should only ever be used for debugging
 def printClusters():
@@ -760,39 +927,6 @@ def computeLabelsForNewModels(allModels, newClusters, allModelsNum, lockR, lockW
 			printProgressBar(allModelsNum)
 
 			lockW.release()
-
-# PRE: models is non-empty
-def getModelFromList(models):
-	modelsSize = len(models)
-	sortedModels = list()
-	for idx in range(modelsSize):
-		sortedModels.append((models[idx], idx))
-
-	sortedModels.sort(key=(lambda item: len(item[0].getUsedComponents())))
-	# print(list(map(lambda item: len(item[0].getUsedComponents()), sortedModels)))
-	# input()
-
-	item = None
-	if (modelsSize < 3):
-		# If 1 or 2 elements, choose the "smallest" one
-		item = sortedModels[0]
-	else:
-		# We divide the sortedModels in 3 equal parts, in order to
-		# prioritize "smaller" models in terms of number of components
-		FIRST_WT  = 3
-		SECOND_WT = 2
-		THIRD_WT  = 1
-
-		whichPartList = [0] * FIRST_WT + [1] * SECOND_WT + [2] * THIRD_WT
-		whichPart = random.choice(whichPartList)
-		startIdx = int((whichPart * modelsSize) / 3)
-		endIdx = int(((whichPart + 1) * modelsSize) / 3)
-
-		item = random.choice(sortedModels[startIdx:endIdx])
-
-	# print((len(item[0].getUsedComponents()), item[1]))
-	# input()
-	return models.pop(item[1])
 	
 
 def updateClusters(newClusters):

@@ -53,9 +53,13 @@ def popModelsAndClassify(modelsStrings, labelsFile, labelsCounter, lockR, lockW)
 		for model in modelObjs:
 			mId = model.modelId
 			if (mId not in list(modelLabelsMap.keys())):
-				state.get('mustLabelModels').append(model)
+				noLabelMustLabels = state.get('mustLabelModels')[NO_LABEL_STRING]
+				if (len(noLabelMustLabels) < MUST_LABEL_SIZE):
+					noLabelMustLabels.append(model)
 			elif (len(modelLabelsMap[mId]) > 1):
-				state.get('mustLabelModels').append(model)
+				multipleLabelsMustLabels = state.get('mustLabelModels')[MULTIPLE_LABELS_STRING]
+				if (len(multipleLabelsMustLabels) < MUST_LABEL_SIZE):
+					multipleLabelsMustLabels.append(model)
 
 		utils.printProgressBar(totalNumOfModels, numOfIterations=numOfModels)
 		lockW.release()

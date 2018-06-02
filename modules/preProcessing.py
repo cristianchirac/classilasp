@@ -96,6 +96,7 @@ def parseInputFile():
 	modelStrings = random.sample(modelStrings, randomSampleSize)
 
 	models = computeAllModelObjects(modelStrings)
+	state.set('sampleModelIds', utils.getModelIds(models))
 
 	if not state.get('prenamedComponents'):
 		compNames = set(list(map(lambda comp: comp.name, state.get('componentTypes'))))

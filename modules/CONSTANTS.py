@@ -14,5 +14,11 @@ QUERY_CACHE_SIZE        = 100
 
 PER_MODEL_PREDS         = ["comp"]
 
+RANDOM_STRING           = "Random"
+QUERY_STRING            = "Query"
 NO_LABEL_STRING         = "No label"
 MULTIPLE_LABELS_STRING  = "Multiple labels"
+
+MUST_LABEL_SIZE         = 50
+MUST_LABEL_WEIGHT       = 2
+NOT_MUST_LABEL_WEIGHT   = 1

@@ -9,7 +9,7 @@ from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
 import random
 import query
-from CONSTANTS import GENERIC_ILASP_CMD, ILASP_LABEL_STRING
+from CONSTANTS import *
 from os.path import join
 
 # Given a newModel and its corresponding label (= labels[userLabelIdx]),
@@ -58,15 +58,32 @@ def getNewModel():
 # at random or if they wish to bias the model they get with a set of
 # constraints, called a 'query'; it returns True if they choose the former,
 # and False if they choose the latter.
-def askIfRandomModel():
+def askModelType():
 	print('(1) Generate random model for classification?')
 	print('(2) Generate model based on a custom set of constraints?')
+	ansMap = {
+		1: RANDOM_STRING,
+		2: QUERY_STRING
+	}
+
+	ansCnt = 2
+
+	if utils.noLabelsExist():
+		ansCnt += 1
+		ansMap[ansCnt] = NO_LABEL_STRING
+		print('(' + str(ansCnt) + ') Generate model with no predicted label?')
+
+	if utils.multipleLabelsExist():
+		ansCnt += 1
+		ansMap[ansCnt] = MULTIPLE_LABELS_STRING
+		print('(' + str(ansCnt) + ') Generate model with multiple predicted labels?')
+
 	while True:
 		try:
 			ans = int(input('Your answer: '))
-			if (ans < 1 or ans > 2):
+			if (ans < 1 or ans > ansCnt):
 				raise ValueError
-			return (ans == 1)
+			return ansMap[ans]
 		except ValueError:
 			print('Invalid label index, please try again!')
 			continue
@@ -80,27 +97,36 @@ def askIfRandomModel():
 # that need to be recomputed (those that incorrectly labelled the current
 # model). No need to return anything, this process is self-contained.
 def newClassif():
+	# utils.printModelLists()
+	# input()
 	labels   = state.get('labels')
 	mustLabelModels = state.get('mustLabelModels')
-	isRandomModel = askIfRandomModel()
+	modelType = askModelType()
+	isFromClusters = modelType == RANDOM_STRING
 
-	if (isRandomModel):
-		if len(mustLabelModels):
-			isRandomModel = False
-			newModel = mustLabelModels.pop()
-		else:
-			newModel = getNewModel()
-	else:
+	if (modelType == RANDOM_STRING):
+		newModel = getNewModel()
+	elif (modelType == QUERY_STRING):
 		newModel = query.getModelWithQuery()
 		if not newModel:
 			print()
 			newClassif()
-			return		
+			return
+	elif (modelType == NO_LABEL_STRING):
+		newModel, isFromClusters = utils.getNoLabelModel()
+	else:
+		# modelType == MULTIPLE_LABELS_STRING
+		newModel, isFromClusters = utils.getMultipleLabelsModel()
 
-	labelsForModel = utils.computeLabelsForModelObj(newModel, forceCompute=(not isRandomModel))
+	utils.checkNoEmptyClusters()
+
+	# print('isFromClusters: ' + str(isFromClusters))
+	# input()
+
+	labelsForModel = utils.computeLabelsForModelObj(newModel, forceCompute=(not isFromClusters))
 	utils.generateModelDiagram(newModel, labelsForModel)
 
-	print(newModel.modelId)
+	# print(newModel.modelId)
 	print('\n* Please classify the model on the screen. Choose (index) from the following:')
 	for l in range(len(labels)):
 		print('(' + str(l + 1) + ') ' + labels[l])
@@ -120,7 +146,7 @@ def newClassif():
 	# If ans was 0, user wants to skip current model, so redo newClassif
 	# to get a new model
 	if (ans == 0):
-		if isRandomModel:
+		if isFromClusters:
 			state.get('skippedModels').append(newModel)
 		print()
 		newClassif()
@@ -130,7 +156,9 @@ def newClassif():
 	userLabelIdx       = ans - 1
 	userLabel          = labels[userLabelIdx]
 
-	if isRandomModel:
+	utils.removeModelFromLists(newModel.modelId)
+
+	if utils.isModelFromSample(newModel.modelId):
 		state.get('userLabelCounters')[userLabel] += 1
 
 	hypothesesToUpdate = state.get('hypothesesToUpdate')
@@ -240,7 +268,7 @@ def computeHypotheses():
 				utils.printTitle('All new labels agree with the last hypotheses computed.')
 
 			utils.checkAndRecluster()
-			state.set('mustLabelModels', [])
+			utils.resetMustLabelModels()
 
 			print('Would you like to:')
 			print('(1) Continue classification to improve current class hypotheses?')
