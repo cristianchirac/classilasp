@@ -18,6 +18,12 @@ import state
 from CONSTANTS import *
 from architectureClasses import Port, Edge, PortGroup, Component, Model
 
+class ExitError(Exception):
+	def __init__(self, value):
+		self.value = value
+	def __str__(self):
+		return repr(self.value)
+
 # Prints a separator line of length "size"
 def printSepLine(size):
 	print(' ' + ('-' * size))
@@ -77,6 +83,8 @@ def setParamsFromArgs(args):
 	for arg in args:
 		if arg == '-p':
 			state.set('prenamedComponents', True)
+		if arg == '-n':
+			state.set('noise', True)
 
 
 # This function recursively checks that two lists have the exact same elements,
@@ -302,9 +310,32 @@ def getAllLabelsFromUser():
 # This method trims this output and returns only the hypothesis
 def getHypothesisfromILASPOutput(output):
 	if 'UNSATISFIABLE' not in output:
-		return output.split('Pre-processing', 1)[0]
+		rawHypLines = output.split('Pre-processing', 1)[0].split('\n')
+		hyp = ''
+		for line in rawHypLines:
+			line = line.strip()
+			if not line.startswith('%'):
+				# Not a comment line
+				hyp += line + '\n'
+
+		return hyp.strip()
 	else:
-		raise RuntimeError('Unfortunately, no hypothesis was found for at least one label.')
+		raise ExitError('Unfortunately, no hypothesis was found for at least one label.')
+
+# This function takes examples files (assumed to be in non-noisy form)
+# and adds the penalties in order to "noisify" them
+def noisifyExamplesFiles():
+	labelExamplesPaths = state.get('labelExamplesPaths')
+	for label in list(labelExamplesPaths.keys()):
+		eStr = getExamplesString(label)
+		eId  = 0
+		while '#pos({' in eStr:
+			eStr = eStr.replace('#pos({', '#pos(e' + str(eId) + '@' + str(EXAMPLE_PENALTY) + ', {', 1)
+			eId += 1
+		file = open(labelExamplesPaths[label], 'w')
+		file.write(eStr)
+		file.close()
+
 
 # This function updates hypotheses for label to newHyp
 def updateHypothesis(label, newHyp):
@@ -344,10 +375,20 @@ def generateContext(model):
 	return contextStr
 
 def generatePosExample(model):
-	return '#pos({' + ILASP_LABEL_STRING + '}, {}, {' + generateContext(model) + '}).'
+	noise = state.get('noise')
+	eId = 'e' + str(len(state.get('labelledModelIds'))) + '@' + str(EXAMPLE_PENALTY)
+	eStr = '#pos('
+	if noise:
+		eStr += eId + ', '
+	return eStr + '{' + ILASP_LABEL_STRING + '}, {}, {' + generateContext(model) + '}).'
 
 def generateNegExample(model):
-	return '#pos({}, {' + ILASP_LABEL_STRING + '}, {' + generateContext(model) + '}).'
+	noise = state.get('noise')
+	eId = 'e' + str(len(state.get('labelledModelIds'))) + '@' + str(EXAMPLE_PENALTY)
+	eStr = '#pos('
+	if noise:
+		eStr += eId + ', '
+	return eStr + '{}, {' + ILASP_LABEL_STRING + '}, {' + generateContext(model) + '}).'
 
 # Though it shouldn't ever be the case that we read an examples file not yet created,
 # creating them initially in the temp directory is just a safety measure against crashes

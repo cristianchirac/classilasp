@@ -5,6 +5,8 @@ state = {
 	'inputFilePath': '',
 	'tempDirPath': '',
 
+	'noise': False,
+
 	'prenamedComponents': False,
 	'nameComponents': False,
 	'unnamedTypesCounter': 0,
@@ -17,7 +19,7 @@ state = {
 	'sampleModelIds': [],
 
 	'labels': [],
-	'labelExamplesPaths': [],
+	'labelExamplesPaths': {},
 	'userLabelCounters': {},
 
 	'skippedModels': [],

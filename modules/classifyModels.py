@@ -7,6 +7,7 @@ import utils
 import uuid
 from subprocess import PIPE, run, Popen
 from threading import Thread, Lock
+from utils import ExitError
 import random
 import query
 from CONSTANTS import *
@@ -191,7 +192,11 @@ def runILASPCMDInThread(backGroundStr, genericBiasStr, label, outputs, lock):
 	ILASPFileStr += biasStr
 
 	programPath = utils.createILASPProgram(label, ILASPFileStr)
-	ILASPCmd = list(GENERIC_ILASP_CMD)
+	
+	if (state.get('noise')):
+		ILASPCmd = list(GENERIC_ILASP3_CMD)
+	else:
+		ILASPCmd = list(GENERIC_ILASP2i_CMD)
 	ILASPCmd.append(programPath)
 
 	out, err = Popen(ILASPCmd, stdout=PIPE, universal_newlines=True).communicate()
@@ -206,6 +211,8 @@ def runILASPCMDInThread(backGroundStr, genericBiasStr, label, outputs, lock):
 # hypotheses need to be updated. Upon termination, it updates the hypotheses in the
 # state and clears the list of hypotheses to be updated.
 def runILASPCommands(labelsToUpdateHypotheses):
+	utils.printTitle('Please wait while the hypotheses are being computed, this might take a while.')
+
 	backGroundStr = utils.getBackgroundString()
 	biasConstantsStr = utils.computeBiasConstants()
 	genericBiasStr = utils.getBiasString().replace('$$CONSTANTS$$', biasConstantsStr)
@@ -224,8 +231,33 @@ def runILASPCommands(labelsToUpdateHypotheses):
 	for thread in threads:
 		thread.join()
 
-	utils.updateHypotheses(outputs)
-	state.get('hypothesesToUpdate').clear()
+	try:
+		utils.updateHypotheses(outputs)
+		state.get('hypothesesToUpdate').clear()
+	except ExitError as e:
+		print('** Error: No hypotheses covering ALL manual classifications were found.\n')
+		if state.get('noise'):
+			# Technically, shouldn't be able to get here;
+			# If we do, raise the error in order to fully exit
+			raise e
+
+		print('Would you like to:')
+		print("(1) Continue search for hypotheses with BEST coverage of manual classifications?")
+		print('(2) Exit?')
+		while True:
+			try:
+				ans = int(input('Your answer (1/2): '))
+				if (ans < 1 or ans > 2):
+					raise ValueError
+				break
+			except ValueError:
+				continue
+		if (ans == 2):
+			raise e
+		else:
+			state.set('noise', True)
+			utils.noisifyExamplesFiles()
+			runILASPCommands(state.get('labels'))
 
 # This represents the main interaction classification cycle
 def computeHypotheses():
@@ -246,7 +278,6 @@ def computeHypotheses():
 			hypothesesToUpdate = list(state.get('hypothesesToUpdate'))
 
 			if (len(hypothesesToUpdate)):
-				utils.printTitle('Please wait while the hypotheses are being computed, this might take a while.')
 				runILASPCommands(hypothesesToUpdate)
 				utils.printHypotheses()
 			else:
@@ -260,7 +291,6 @@ def computeHypotheses():
 		elif (continueClassif == 'n'):
 			hypothesesToUpdate = list(state.get('hypothesesToUpdate'))
 			if (len(hypothesesToUpdate)):
-				utils.printTitle('Please wait while the hypotheses are being computed, this might take a while.')
 				runILASPCommands(hypothesesToUpdate)
 				utils.printHypotheses()
 				state.set('labelPredictionsUpdated', False)
