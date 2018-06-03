@@ -77,6 +77,8 @@ def setParamsFromArgs(args):
 	for arg in args:
 		if arg == '-p':
 			state.set('prenamedComponents', True)
+		if arg == '-n':
+			state.set('noise', True)
 
 
 # This function recursively checks that two lists have the exact same elements,
@@ -302,7 +304,15 @@ def getAllLabelsFromUser():
 # This method trims this output and returns only the hypothesis
 def getHypothesisfromILASPOutput(output):
 	if 'UNSATISFIABLE' not in output:
-		return output.split('Pre-processing', 1)[0]
+		rawHypLines = output.split('Pre-processing', 1)[0].split('\n')
+		hyp = ''
+		for line in rawHypLines:
+			line = line.strip()
+			if not line.startswith('%'):
+				# Not a comment line
+				hyp += line + '\n'
+
+		return hyp.strip()
 	else:
 		raise RuntimeError('Unfortunately, no hypothesis was found for at least one label.')
 
@@ -344,10 +354,20 @@ def generateContext(model):
 	return contextStr
 
 def generatePosExample(model):
-	return '#pos({' + ILASP_LABEL_STRING + '}, {}, {' + generateContext(model) + '}).'
+	noise = state.get('noise')
+	eId = 'e' + str(len(state.get('labelledModelIds'))) + '@' + str(EXAMPLE_PENALTY)
+	eStr = '#pos('
+	if noise:
+		eStr += eId + ', '
+	return eStr + '{' + ILASP_LABEL_STRING + '}, {}, {' + generateContext(model) + '}).'
 
 def generateNegExample(model):
-	return '#pos({}, {' + ILASP_LABEL_STRING + '}, {' + generateContext(model) + '}).'
+	noise = state.get('noise')
+	eId = 'e' + str(len(state.get('labelledModelIds'))) + '@' + str(EXAMPLE_PENALTY)
+	eStr = '#pos('
+	if noise:
+		eStr += eId + ', '
+	return eStr + '{}, {' + ILASP_LABEL_STRING + '}, {' + generateContext(model) + '}).'
 
 # Though it shouldn't ever be the case that we read an examples file not yet created,
 # creating them initially in the temp directory is just a safety measure against crashes

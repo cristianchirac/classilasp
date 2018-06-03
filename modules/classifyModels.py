@@ -191,7 +191,11 @@ def runILASPCMDInThread(backGroundStr, genericBiasStr, label, outputs, lock):
 	ILASPFileStr += biasStr
 
 	programPath = utils.createILASPProgram(label, ILASPFileStr)
-	ILASPCmd = list(GENERIC_ILASP_CMD)
+	
+	if (state.get('noise')):
+		ILASPCmd = list(GENERIC_ILASP3_CMD)
+	else:
+		ILASPCmd = list(GENERIC_ILASP2i_CMD)
 	ILASPCmd.append(programPath)
 
 	out, err = Popen(ILASPCmd, stdout=PIPE, universal_newlines=True).communicate()

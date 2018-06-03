@@ -2,7 +2,8 @@ MAX_RELEVANT_MODELS     = 1000
 CLASSIFICATION_THREADS  = 10
 MODELS_PER_PROC         = 1000
 
-GENERIC_ILASP_CMD       = ["ILASP", "--version=2i"]
+GENERIC_ILASP2i_CMD     = ["ILASP", "--version=2i"]
+GENERIC_ILASP3_CMD      = ["ILASP", "--version=3"]
 GENERIC_CLINGO_CMD      = ["clingo", "0"]
 INVENTED_PREDICATES     = ["invented_pred"]
 ILASP_LABEL_STRING      = "gENERIC_LABEL"
@@ -22,3 +23,5 @@ MULTIPLE_LABELS_STRING  = "Multiple labels"
 MUST_LABEL_SIZE         = 50
 MUST_LABEL_WEIGHT       = 2
 NOT_MUST_LABEL_WEIGHT   = 1
+
+EXAMPLE_PENALTY         = 100

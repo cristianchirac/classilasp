@@ -5,6 +5,8 @@ state = {
 	'inputFilePath': '',
 	'tempDirPath': '',
 
+	'noise': False,
+	
 	'prenamedComponents': False,
 	'nameComponents': False,
 	'unnamedTypesCounter': 0,
