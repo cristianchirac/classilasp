@@ -3,6 +3,7 @@ from CONSTANTS import *
 state = {
 	'mainScriptPath': '',
 	'inputFilePath': '',
+	'outputFilePath': '',
 	'tempDirPath': '',
 
 	'noise': False,

@@ -27,6 +27,7 @@ def preProcessingFunc():
 
 	state.set('mainScriptPath', utils.getAbsPath(mainScriptPath))
 	state.set('inputFilePath', utils.getAbsPath(inputFilePath))
+	state.set('outputFilePath', utils.computeClassFilePath())
 
 	utils.printTitle('Pre-processing of given file is about to begin.')
 	tempDirPath = utils.createTempDirectory(mainScriptPath)

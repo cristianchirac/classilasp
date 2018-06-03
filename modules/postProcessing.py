@@ -81,8 +81,8 @@ def classifyAllModels(modelsAbsPath):
 	lockR = Lock()
 	lockW = Lock()
 
-	classFilePath = utils.computeClassFilePath()
-	labelsFile = open(classFilePath, 'a')
+	classFilePath = state.get('outputFilePath')
+	labelsFile = open(classFilePath, 'w')
 	labelsCounter = utils.getBlankLabelsCounter()
 
 	threads = list()
