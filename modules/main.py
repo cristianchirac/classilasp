@@ -11,6 +11,8 @@ import preProcessing
 import postProcessing
 import classifyModels
 
+from utils import ExitError
+
 # PRE-PROCESSING BIT
 def preProcessingFunc():
 	numOfArgs = len(sys.argv)
@@ -89,6 +91,8 @@ if __name__ == "__main__":
     	main()
     except KeyboardInterrupt:
     	print('\nInterrupted from keyboard!\n')
+    except ExitError:
+    	None
     except Exception:
     	traceback.print_exc()
     finally:
