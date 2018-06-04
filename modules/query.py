@@ -27,6 +27,31 @@ def getQueryFromUser(inputQuery):
         queryStr = ''
         root.destroy()
 
+    def helpPopup():
+        infoText = ('The following predicates may be used:\n\n' + 
+                        ' * comp(V, compC), where compC is a constant component name\n' + 
+                        ' * are_connected(V0, V1)\n' +
+                        ' * direct_path(V0, V1, V2)\n')
+        helpDialog = Toplevel()
+        helpDialog.geometry("400x300")
+        helpDialog.title("Help")
+
+        helpFrame = Frame(helpDialog)
+        helpFrame.pack(expand=True, fill=BOTH)
+        helpFrame.grid_propagate(False)
+        helpFrame.grid_rowconfigure(0, weight=1)
+        helpFrame.grid_columnconfigure(0, weight=1)
+
+        helpMsg = Message(helpFrame, text=infoText, width=390)
+        helpMsg.pack()
+
+        helpBtn = Button(helpDialog, text="Ok", command=helpDialog.destroy)
+        helpBtn.pack(side=BOTTOM)
+
+        noteText = ('\nNote: V, V0, V1, etc. denote component variables.\n')
+        noteMsg = Message(helpDialog, text=noteText, width=390)
+        noteMsg.pack(side=BOTTOM)
+
     def selectAll(event):
         text.tag_add(SEL, "1.0", END)
         text.mark_set(INSERT, "1.0")
@@ -66,9 +91,12 @@ def getQueryFromUser(inputQuery):
     root = Tk()
     root.title("Query editor")
 
+    topframe = Frame(root)
+    topframe.pack(side=TOP)
+
     labelVar = StringVar()
-    label = Label(root, textvariable=labelVar)
-    label.pack(side=TOP)
+    label = Label(topframe, textvariable=labelVar)
+    label.grid(row=0, column=0)
     if (inputQuery == ''):
         labelVar.set("Please type in your query, then hit 'Run'.")
     else:
@@ -97,8 +125,10 @@ def getQueryFromUser(inputQuery):
 
     runButton = Button(bottomframe, text="Run", command=getTextAndExit)
     runButton.pack(side=LEFT)
+    helpButton = Button(bottomframe, text="Help", command=helpPopup)
+    helpButton.pack(side=LEFT)
     cancelButton = Button(bottomframe, text="Cancel", command=onCancel)
-    cancelButton.pack(side=RIGHT)
+    cancelButton.pack(side=LEFT)
 
     root.mainloop()
 
