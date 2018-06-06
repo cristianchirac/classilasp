@@ -22,11 +22,11 @@ def setRelevantPatterns():
 	root.title("Relevant patterns")
 	root.columnconfigure(0, weight=1)
 	root.rowconfigure(1, weight=1)
-	
+
 	label = Label(root, text="Please select ONLY the relevant patterns for classification:\n")
 	label.grid(row=0)
 
-	canvas = Canvas(root, width=300, height=300)
+	canvas = Canvas(root, width=300, height=350)
 	canvas.grid(row=1, column=0, sticky="nsew")
 
 	scrollbar = Scrollbar(root, command=canvas.yview)

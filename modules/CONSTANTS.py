@@ -29,6 +29,21 @@ EXAMPLE_PENALTY         = 100
 
 PATTERNS_REL_PATH       = "./patterns/"
 PATTERNS_SIGANTURES     = {
-	"are_connected"     : "are_connected(V0, V1)",
-	"direct_path"       : "direct_path(V0, V1, V2)"
+	"are_connected"        : "are_connected(V0, V1)",
+	"triangle"             : "triangle(V0, V1, V2)",
+	"triangle_path"        : "triangle_path(V0, V1, V2)",
+	"direct_line_3"        : "direct_line_3(V0, V1, V2)",
+	"direct_path_3"        : "direct_path_3(V0, V1, V2)",
+	"direct_line_4"        : "direct_line_4(V0, V1, V2, V3)",
+	"direct_path_4"        : "direct_path_4(V0, V1, V2, V3)",
+	"y_shape"              : "y_shape(V0, V1, V2, V3)",
+	"y_path"               : "y_path(V0, V1, V2, V3)",
+	"y_triangle"           : "y_triangle(V0, V1, V2, V3)",
+	"y_triangle_path"      : "y_triangle_path(V0, V1, V2, V3)",
+	"square"               : "square(V0, V1, V2, V3)",
+	"square_path"          : "square_path(V0, V1, V2, V3)",
+	"square_one_diag"      : "square_one_diag(V0, V1, V2, V3)",
+	"square_one_diag_path" : "square_one_diag_path(V0, V1, V2, V3)",
+	"connected_4"          : "connected_4(V0, V1, V2, V3)",
+	"connected_path_4"     : "connected_path_4(V0, V1, V2, V3)",
 }

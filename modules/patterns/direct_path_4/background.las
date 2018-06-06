@@ -1,0 +1,1 @@
+direct_path_4(C1, C2, C3, C4) :- compV(C1), compV(C2), compV(C3), compV(C4), C1 != C2, C1 != C3, C1 != C4, C2 != C3, C2 != C4, C3 != C4, opt_path(C1, C2, M), opt_path(C2, C3, N), opt_path(C3, C4, P), val(C2, A), val(C3, B), M & N == A, N & P == B.
