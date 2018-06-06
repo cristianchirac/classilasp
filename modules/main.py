@@ -10,6 +10,7 @@ import utils
 import preProcessing
 import postProcessing
 import classifyModels
+from relevantPatterns import *
 
 from utils import ExitError
 
@@ -48,12 +49,17 @@ def preProcessingFunc():
 
 	utils.printTitle('Pre-processing of file complete!')
 
+	while not len(state.get('relevantPatterns')):
+		setRelevantPatterns()
+
 	labels             = utils.getAllLabelsFromUser()
 	labelExamplesPaths = utils.createLabelExampleFiles(labels)
 
 	state.set('labels', labels)
 	state.set('labelExamplesPaths', labelExamplesPaths)
 	utils.initUserLabelCounters()
+
+	utils.setDefaultQuery()
 
 	utils.printTitle('Thank you, classification process will now begin.')
 

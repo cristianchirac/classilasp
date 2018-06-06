@@ -8,6 +8,8 @@ state = {
 
 	'noise': False,
 
+	'relevantPatterns': [],
+
 	'prenamedComponents': False,
 	'nameComponents': False,
 	'unnamedTypesCounter': 0,
@@ -27,6 +29,7 @@ state = {
 	'labelledModelIds': [],
 
 	'prevQuery': '',
+	'ranAQuery': False,
 	'queryCache': [],
 
 	'clusters': {},

@@ -10,6 +10,7 @@ ILASP_LABEL_STRING      = "gENERIC_LABEL"
 
 TEMP_DIR_NAME           = "__temp__"
 QUERY_FILE_NAME         = "QUERY_FILE.las"
+DEFAULT_QUERY_REL_PATH  = "./defaultQuery.las"
 QUERY_KEY_HEAD          = "select"
 QUERY_CACHE_SIZE        = 100
 
@@ -25,3 +26,9 @@ MUST_LABEL_WEIGHT       = 2
 NOT_MUST_LABEL_WEIGHT   = 1
 
 EXAMPLE_PENALTY         = 100
+
+PATTERNS_REL_PATH       = "./patterns/"
+PATTERNS_SIGANTURES     = {
+	"are_connected"     : "are_connected(V0, V1)",
+	"direct_path"       : "direct_path(V0, V1, V2)"
+}
