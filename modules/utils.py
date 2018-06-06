@@ -425,11 +425,35 @@ def getBiasPath():
 	currDir = dirname(realpath(__file__))
 	return abspath(join(currDir, 'bias.las'))
 
+def getPatternBackgroundPath(pattern):
+	currDir = dirname(realpath(__file__))
+	return abspath(join(currDir, PATTERNS_REL_PATH, pattern, 'background.las'))
+
+def getPatternBiasPath(pattern):
+	currDir = dirname(realpath(__file__))
+	return abspath(join(currDir, PATTERNS_REL_PATH, pattern, 'bias.las'))
+
+def getPatternBackground(pattern):
+	file = open(getPatternBackgroundPath(pattern), 'r')
+	backgroundString = file.read()
+	file.close()
+	return '\n' + backgroundString + '\n'
+
+def getPatternBias(pattern):
+	file = open(getPatternBiasPath(pattern), 'r')
+	biasString = file.read()
+	file.close()
+	return '\n' + biasString + '\n'
+
 # This returns contents of the background file as a string
 def getBackgroundString():
 	file = open(getBackgroundPath(), 'r')
 	backgroundString = file.read()
 	file.close()
+
+	for pattern in state.get('relevantPatterns'):
+		backgroundString += getPatternBackground(pattern)
+
 	return backgroundString
 
 # This returns contents of the bias file as a string
@@ -437,7 +461,12 @@ def getBiasString():
 	file = open(getBiasPath(), 'r')
 	biasString = file.read()
 	file.close()
-	return biasString
+
+	patternBiases = ''
+	for pattern in state.get('relevantPatterns'):
+		patternBiases += getPatternBias(pattern)
+
+	return biasString.replace('$$PATTERN_BIASES$$', patternBiases)
 
 # This computes the bias component constants, which are the component types
 def computeBiasConstants():
@@ -631,6 +660,14 @@ def removeModelFromList(mId, models):
 		if mId == models[idx].modelId:
 			models.pop(idx)
 			return
+
+def setDefaultQuery():
+	currDir = dirname(realpath(__file__))
+	defaultQueryPath = abspath(join(currDir, DEFAULT_QUERY_REL_PATH))
+	file = open(defaultQueryPath, 'r')
+	defaultQueryString = file.read()
+	file.close()
+	state.set('prevQuery', defaultQueryString)
 
 def removeModelFromLists(mId):
 	clusters            = state.get('clusters')

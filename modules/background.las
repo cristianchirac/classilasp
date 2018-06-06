@@ -6,4 +6,3 @@ are_connected(C1, C2) :- port(C1, P1), port(C2, P2), edge(P1, P2).
 
 opt_path(C1, C2, M + N) :- are_connected(C1, C2), val(C1, M), val(C2, N).
 opt_path(C1, C2, M + N - P) :- opt_path(C1, C3, M), opt_path(C3, C2, N), val(C3, P), M & N == P.
-direct_path(C1, C2, C3) :- compV(C1), compV(C2), compV(C3), C1 != C2, C2 != C3, C1 != C3, opt_path(C1, C2, M), opt_path(C2, C3, N), val(C2, P), M & N == P.

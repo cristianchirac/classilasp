@@ -29,9 +29,16 @@ def getQueryFromUser(inputQuery):
 
     def helpPopup():
         infoText = ('The following predicates may be used:\n\n' + 
-                        ' * comp(V, compC), where compC is a constant component name\n' + 
-                        ' * are_connected(V0, V1)\n' +
-                        ' * direct_path(V0, V1, V2)\n')
+                        ' * comp(V, compC), where compC is a constant component name\n')
+
+        # This is because "are_connected" is in the default background knowledge
+        # so it can be used not matter if it goes in the mode bias or not
+        if "are_connected" not in state.get('relevantPatterns'):
+            infoText += ' * ' + PATTERNS_SIGANTURES["are_connected"] + '\n'
+
+        for pattern in state.get('relevantPatterns'):
+            infoText += ' * ' + PATTERNS_SIGANTURES[pattern] + '\n'
+
         helpDialog = Toplevel()
         helpDialog.geometry("400x300")
         helpDialog.title("Help")
@@ -97,7 +104,7 @@ def getQueryFromUser(inputQuery):
     labelVar = StringVar()
     label = Label(topframe, textvariable=labelVar)
     label.grid(row=0, column=0)
-    if (inputQuery == ''):
+    if (inputQuery == '' or not state.get('ranAQuery')):
         labelVar.set("Please type in your query, then hit 'Run'.")
     else:
         labelVar.set("Query unchanged, click 'Run' to get new model from cache.")
@@ -343,6 +350,7 @@ def updateCache(query):
     randomSampleSize = min(len(validModels), QUERY_CACHE_SIZE)
     cache = random.sample(validModels, randomSampleSize)
     state.set('queryCache', cache)
+    state.set('ranAQuery', True)
 
     # Update preQuery to have it appear by default in the query editor
     # next time the user wants to use it
@@ -363,7 +371,7 @@ def getModelWithQuery():
     if (query == ''):
         return None
 
-    if (query != prevQuery):
+    if (query != prevQuery or not state.get('ranAQuery')):
         if not checkQueryCorrectness(query):
             return None
         updateCache(query)
