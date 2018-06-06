@@ -1,0 +1,1 @@
+select :- comp(V, gs).

@@ -661,9 +661,12 @@ def removeModelFromList(mId, models):
 			models.pop(idx)
 			return
 
-def setDefaultQuery():
+def getDefaultQueryPath():
 	currDir = dirname(realpath(__file__))
-	defaultQueryPath = abspath(join(currDir, DEFAULT_QUERY_REL_PATH))
+	return abspath(join(currDir, DEFAULT_QUERY_REL_PATH))
+
+def setDefaultQuery():
+	defaultQueryPath = getDefaultQueryPath()
 	file = open(defaultQueryPath, 'r')
 	defaultQueryString = file.read()
 	file.close()

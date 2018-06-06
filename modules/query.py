@@ -59,6 +59,33 @@ def getQueryFromUser(inputQuery):
         noteMsg = Message(helpDialog, text=noteText, width=390)
         noteMsg.pack(side=BOTTOM)
 
+    def savePopup():
+        def onSave():
+            queryStr = text.get("1.0", END).strip()
+            defaultQueryPath = utils.getDefaultQueryPath()
+            file = open(defaultQueryPath, 'w')
+            file.write(queryStr)
+            file.close()
+            saveDialog.destroy()
+
+        saveDialog = Toplevel()
+        saveDialog.title("Save")
+
+        msgText = "This query will be saved as default for future classilasp runs."
+        saveMsg = Message(saveDialog, text=msgText, width=390)
+        saveMsg.pack()
+
+        saveFrame = Frame(saveDialog)
+        saveFrame.pack(side=BOTTOM)
+        saveFrame.grid_propagate(False)
+        saveFrame.grid_rowconfigure(0, weight=1)
+        saveFrame.grid_columnconfigure(0, weight=1)
+
+        saveBtn = Button(saveFrame, text="Ok", command=onSave)
+        saveBtn.pack(side=LEFT)
+        cancelBtn = Button(saveFrame, text="Cancel", command=saveDialog.destroy)
+        cancelBtn.pack(side=LEFT)
+
     def selectAll(event):
         text.tag_add(SEL, "1.0", END)
         text.mark_set(INSERT, "1.0")
@@ -132,6 +159,8 @@ def getQueryFromUser(inputQuery):
 
     runButton = Button(bottomframe, text="Run", command=getTextAndExit)
     runButton.pack(side=LEFT)
+    saveButton = Button(bottomframe, text="Save", command=savePopup)
+    saveButton.pack(side=LEFT)
     helpButton = Button(bottomframe, text="Help", command=helpPopup)
     helpButton.pack(side=LEFT)
     cancelButton = Button(bottomframe, text="Cancel", command=onCancel)
