@@ -19,11 +19,11 @@ def setRelevantPatterns():
 	    canvas.configure(scrollregion=canvas.bbox('all'))
 
 	root = Tk()
-	root.title("Relevant patterns")
+	root.title("Relevant substructures and patterns")
 	root.columnconfigure(0, weight=1)
 	root.rowconfigure(1, weight=1)
 
-	label = Label(root, text="Please select ONLY the relevant patterns for classification:\n")
+	label = Label(root, anchor=W, justify=LEFT, text="Please select ONLY the relevant substructures and patterns for classification:\n")
 	label.grid(row=0)
 
 	canvas = Canvas(root, width=300, height=350)
